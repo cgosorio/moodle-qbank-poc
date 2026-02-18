@@ -322,13 +322,112 @@ public class MoodleEditorApp extends Application {
     }
 
     private void updateDetail(MoodleQuestion q) {
-        String processedHtml = q.getQuestionText();
+        if (q == null) return;
+
+        StringBuilder html = new StringBuilder();
+        html.append("<html><body style='font-family: sans-serif; padding: 10px;'>");
+
+        // 1. Cabecera (Nombre y Tipo) - Igual que antes
+        html.append("<div style='background: #f8f9fa; padding: 10px; border-bottom: 2px solid #dee2e6; margin-bottom: 15px;'>");
+        html.append("<strong>Nombre:</strong> ").append(q.getName()).append("<br>");
+        html.append("<strong>Tipo:</strong> <span style='color: #0d6efd;'>").append(q.getType()).append("</span>");
+        html.append("</div>");
+
+        // 2. Enunciado (Con soporte para imágenes)
+        String body = q.getQuestionText();
         for (MoodleFile f : q.getFiles()) {
             String mime = f.name.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
-            processedHtml = processedHtml.replace("@@PLUGINFILE@@/" + f.name, "data:" + mime + ";base64," + f.content);
+            body = body.replace("@@PLUGINFILE@@/" + f.name, "data:" + mime + ";base64," + f.content);
         }
-        webView.getEngine().loadContent(processedHtml);
+        html.append("<div style='margin-bottom: 20px;'>").append(body).append("</div>");
+
+        // 3. Lógica de Respuestas según el tipo
+        if ("matching".equals(q.getType())) {
+            // --- CASO PREGUNTAS DE EMPAREJAMIENTO ---
+            html.append("<h4>Pares de Emparejamiento:</h4>");
+            html.append("<table border='1' style='border-collapse: collapse; width: 100%; font-size: 0.9em;'>");
+            html.append("<tr style='background: #e9ecef;'><th style='padding: 5px;'>Pregunta / Estímulo</th><th style='padding: 5px;'>Respuesta Correcta</th></tr>");
+
+            NodeList subquestions = q.getOriginalElement().getElementsByTagName("subquestion");
+            for (int i = 0; i < subquestions.getLength(); i++) {
+                Element sub = (Element) subquestions.item(i);
+                String subText = getNestedText(sub); // Texto del estímulo
+                
+                // La respuesta correcta en emparejamiento está en un subnodo <answer><text>
+                String subAnswer = "";
+                NodeList subAnsList = sub.getElementsByTagName("answer");
+                if (subAnsList.getLength() > 0) {
+                    subAnswer = getNestedText((Element) subAnsList.item(0));
+                }
+
+                if (!subText.isEmpty() || !subAnswer.isEmpty()) {
+                    html.append("<tr>");
+                    html.append("<td style='padding: 5px;'>").append(subText).append("</td>");
+                    html.append("<td style='padding: 5px; font-weight: bold; color: green;'>").append(subAnswer).append("</td>");
+                    html.append("</tr>");
+                }
+            }
+            html.append("</table>");
+
+        } else {
+            // --- CASO OPCIÓN MÚLTIPLE / VERDADERO-FALSO (Nodo <answer>) ---
+            NodeList answers = q.getOriginalElement().getElementsByTagName("answer");
+            if (answers.getLength() > 0) {
+                html.append("<h4>Opciones de Respuesta:</h4>");
+                html.append("<table border='1' style='border-collapse: collapse; width: 100%; font-size: 0.9em;'>");
+                html.append("<tr style='background: #e9ecef;'><th style='padding: 5px;'>%</th><th style='padding: 5px;'>Opción</th><th style='padding: 5px;'>Feedback</th></tr>");
+
+                for (int i = 0; i < answers.getLength(); i++) {
+                    Element ans = (Element) answers.item(i);
+                    String fraction = ans.getAttribute("fraction");
+                    String answerText = getNestedText(ans);
+                    
+                    String feedbackText = "";
+                    NodeList fbNodes = ans.getElementsByTagName("feedback");
+                    if (fbNodes.getLength() > 0) {
+                        feedbackText = getNestedText((Element) fbNodes.item(0));
+                    }
+
+                    String color = "black";
+                    try {
+                        double f = Double.parseDouble(fraction);
+                        if (f > 0) color = "green"; else if (f < 0) color = "red";
+                    } catch (Exception e) {}
+
+                    html.append("<tr>");
+                    html.append("<td style='padding: 5px; text-align: center; color:").append(color).append(";'>").append(fraction).append("%</td>");
+                    html.append("<td style='padding: 5px;'>").append(answerText).append("</td>");
+                    html.append("<td style='padding: 5px; font-style: italic; color: #666;'>").append(feedbackText).append("</td>");
+                    html.append("</tr>");
+                }
+                html.append("</table>");
+            }
+        }
+
+        html.append("</body></html>");
+        webView.getEngine().loadContent(html.toString());
         editorArea.setText(q.getQuestionText());
+    }
+
+    // Método auxiliar para obtener valores de tags simples sin <text>
+    private String getTagValue(Element parent, String tag) {
+        NodeList nl = parent.getElementsByTagName(tag);
+        if (nl.getLength() > 0) return nl.item(0).getTextContent();
+        return "";
+    }
+
+    /**
+    * Busca el primer nodo <text> dentro de un elemento y devuelve su contenido.
+    * Útil para extraer el contenido de <answer>, <feedback>, <name>, etc.
+    */
+    private String getNestedText(Element parent) {
+        if (parent == null) return "";
+        NodeList nl = parent.getElementsByTagName("text");
+        if (nl.getLength() > 0) {
+            return nl.item(0).getTextContent();
+        }
+        // Si no tiene subnodo <text>, intentamos el contenido directo (por si acaso)
+        return parent.getTextContent() != null ? parent.getTextContent().trim() : "";
     }
 
     private void setupTableColumns() {
