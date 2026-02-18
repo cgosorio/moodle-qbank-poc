@@ -2,6 +2,7 @@ import javafx.application.Application;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -20,52 +21,71 @@ public class MoodleEditorApp extends Application {
     private TableView<MoodleQuestion> tableView;
     private WebView webView;
     private TextArea editorArea;
-    
-    // Almacén de preguntas indexadas por su ruta de categoría
     private Map<String, ObservableList<MoodleQuestion>> categoryData = new HashMap<>();
 
     @Override
     public void start(Stage primaryStage) {
-        // 1. PANEL IZQUIERDO: Árbol de categorías
+        // --- PANEL IZQUIERDO ---
         TreeItem<String> rootItem = new TreeItem<>("Banco de Preguntas");
         rootItem.setExpanded(true);
         treeView = new TreeView<>(rootItem);
+        treeView.setMinWidth(250);
+        
         treeView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) updateTable(getFullPath(newVal));
         });
 
-        // 2. PANEL DERECHO SUPERIOR: Tabla de preguntas
+        // --- PANEL DERECHO SUPERIOR ---
         tableView = new TableView<>();
         TableColumn<MoodleQuestion, String> colName = new TableColumn<>("Nombre");
         colName.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getName()));
+        colName.setPrefWidth(400);
+
         TableColumn<MoodleQuestion, String> colType = new TableColumn<>("Tipo");
         colType.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getType()));
-        
+
         tableView.getColumns().addAll(colName, colType);
+        VBox.setVgrow(tableView, Priority.ALWAYS);
+
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) updateDetail(newVal);
         });
 
-        // 3. PANEL DERECHO INFERIOR: Detalle y Renderizado
+        // --- PANEL DERECHO INFERIOR ---
         webView = new WebView();
         editorArea = new TextArea();
-        editorArea.setPromptText("Código HTML de la pregunta...");
-        VBox detailBox = new VBox(new Label("Previsualización:"), webView, new Label("Editor:"), editorArea);
+        VBox detailBox = new VBox(10, new Label("Vista Previa:"), webView, new Label("Editor:"), editorArea);
+        detailBox.setPadding(new Insets(10));
         VBox.setVgrow(webView, Priority.ALWAYS);
 
-        // --- DISTRIBUCIÓN (Layout) ---
+        // --- LAYOUT ---
         SplitPane rightSplit = new SplitPane(tableView, detailBox);
         rightSplit.setOrientation(javafx.geometry.Orientation.VERTICAL);
-        
+        rightSplit.setDividerPositions(0.4);
+
         SplitPane mainSplit = new SplitPane(treeView, rightSplit);
-        mainSplit.setDividerPositions(0.3);
+        mainSplit.setDividerPositions(0.25);
 
-        // Cargar datos iniciales (Simulado o desde archivo)
-        loadXML("TemplatePreguntas.xml");
+        // --- CARGA DE DATOS ---
+        File xmlFile = new File("TemplatePreguntas.xml");
+        if (xmlFile.exists()) {
+            loadXML(xmlFile);
+        } else {
+            createSampleData();
+        }
 
-        Scene scene = new Scene(mainSplit, 1100, 700);
-        primaryStage.setTitle("Moodle XML Editor - JavaFX");
+        Scene scene = new Scene(mainSplit, 1200, 800);
+        primaryStage.setTitle("Moodle Bank Editor - Offline");
+        primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    private void createSampleData() {
+        TreeItem<String> cat = new TreeItem<>("Archivo no encontrado");
+        treeView.getRoot().getChildren().add(cat);
+        ObservableList<MoodleQuestion> samples = FXCollections.observableArrayList();
+        samples.add(new MoodleQuestion("info", "Error", "Coloque TemplatePreguntas.xml en la raíz del proyecto."));
+        categoryData.put("Banco de Preguntas/Archivo no encontrado", samples);
     }
 
     private void updateTable(String path) {
@@ -78,38 +98,38 @@ public class MoodleEditorApp extends Application {
     }
 
     private String getFullPath(TreeItem<String> item) {
-        if (item == null || item.getParent() == null) return "";
-        String parentPath = getFullPath(item.getParent());
-        return (parentPath.isEmpty() ? "" : parentPath + "/") + item.getValue();
+        if (item == null) return "";
+        if (item.getParent() == null) return item.getValue();
+        return getFullPath(item.getParent()) + "/" + item.getValue();
     }
 
-    // --- LÓGICA DE CARGA XML ---
-    private void loadXML(String fileName) {
+    private void loadXML(File file) {
         try {
-            // Nota: En una app real, usarías un FileChooser
-            File inputFile = new File(fileName);
-            if (!inputFile.exists()) return;
-
-            DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-            Document doc = dBuilder.parse(inputFile);
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            Document doc = db.parse(file);
             doc.getDocumentElement().normalize();
 
-            NodeList nList = doc.getElementsByTagName("question");
-            String currentCategory = "Raíz";
+            NodeList nodes = doc.getElementsByTagName("question");
+            String currentPath = "Banco de Preguntas";
 
-            for (int i = 0; i < nList.getLength(); i++) {
-                Element elem = (Element) nList.item(i);
-                String type = elem.getAttribute("type");
+            for (int i = 0; i < nodes.getLength(); i++) {
+                Node node = nodes.item(i);
+                if (node.getNodeType() == Node.ELEMENT_NODE) {
+                    Element el = (Element) node;
+                    String type = el.getAttribute("type");
 
-                if (type.equals("category")) {
-                    currentCategory = elem.getElementsByTagName("text").item(0).getTextContent();
-                    addCategoryToTree(currentCategory);
-                } else {
-                    String name = elem.getElementsByTagName("name").item(0).getTextContent();
-                    String text = elem.getElementsByTagName("questiontext").item(0).getTextContent();
-                    MoodleQuestion q = new MoodleQuestion(type, name, text);
-                    categoryData.computeIfAbsent(currentCategory, k -> FXCollections.observableArrayList()).add(q);
+                    if ("category".equals(type)) {
+                        String catStr = getNestedTagValue(el, "category");
+                        if (!catStr.isEmpty()) {
+                            currentPath = buildTreeFromMoodlePath(catStr);
+                        }
+                    } else {
+                        String name = getNestedTagValue(el, "name");
+                        String text = getNestedTagValue(el, "questiontext");
+                        MoodleQuestion q = new MoodleQuestion(type, name, text);
+                        categoryData.computeIfAbsent(currentPath, k -> FXCollections.observableArrayList()).add(q);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -117,26 +137,48 @@ public class MoodleEditorApp extends Application {
         }
     }
 
-    private void addCategoryToTree(String moodlePath) {
-        // Limpiar el prefijo de Moodle $module$/top/
-        String cleanPath = moodlePath.replace("$module$/top/", "");
-        String[] parts = cleanPath.split("/");
-        TreeItem<String> current = treeView.getRoot();
+    private String getNestedTagValue(Element parent, String tagName) {
+        try {
+            NodeList list = parent.getElementsByTagName(tagName);
+            if (list.getLength() > 0) {
+                Node node = list.item(0);
+                if (node instanceof Element) {
+                    Element tagElement = (Element) node;
+                    NodeList textList = tagElement.getElementsByTagName("text");
+                    if (textList.getLength() > 0) {
+                        return textList.item(0).getTextContent();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            return "";
+        }
+        return "";
+    }
 
-        for (String part : parts) {
-            TreeItem<String> next = null;
+    private String buildTreeFromMoodlePath(String moodlePath) {
+        String clean = moodlePath.replace("$module$/top/", "");
+        String[] parts = clean.split("/");
+        TreeItem<String> current = treeView.getRoot();
+        StringBuilder fullPath = new StringBuilder("Banco de Preguntas");
+
+        for (String p : parts) {
+            if (p.isEmpty()) continue;
+            fullPath.append("/").append(p);
+            TreeItem<String> found = null;
             for (TreeItem<String> child : current.getChildren()) {
-                if (child.getValue().equals(part)) {
-                    next = child;
+                if (child.getValue().equals(p)) {
+                    found = child;
                     break;
                 }
             }
-            if (next == null) {
-                next = new TreeItem<>(part);
-                current.getChildren().add(next);
+            if (found == null) {
+                found = new TreeItem<>(p);
+                current.getChildren().add(found);
             }
-            current = next;
+            current = found;
         }
+        return fullPath.toString();
     }
 
     public static void main(String[] args) {
