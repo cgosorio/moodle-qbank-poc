@@ -387,23 +387,59 @@ public class MoodleEditorApp extends Application {
         if (item == null || item == treeView.getRoot()) return;
 
         String path = getFullPath(item);
-        int count = categoryData.getOrDefault(path, FXCollections.observableArrayList()).size();
-        boolean hasChildren = !item.getChildren().isEmpty();
+        
+        // 1. Contar preguntas en esta categoría específica
+        int numPreguntas = categoryData.getOrDefault(path, FXCollections.observableArrayList()).size();
+        
+        // 2. Contar subcategorías (descendientes directos e indirectos)
+        // Restamos 1 porque el método cuenta también el item actual
+        int numSubcategorias = countSubcategories(item) - 1;
 
-        String msg = "¿Estás seguro de borrar '" + item.getValue() + "'?";
-        if (count > 0 || hasChildren) {
-            msg = "La categoría no está vacía (contiene " + count + " preguntas o subcategorías).\n" + msg;
+        // 3. Preparar el mensaje dinámico
+        StringBuilder sb = new StringBuilder();
+        sb.append("Estás a punto de borrar la categoría: '").append(item.getValue()).append("'\n\n");
+        
+        if (numPreguntas > 0 || numSubcategorias > 0) {
+            sb.append("Aviso: Esta categoría contiene:\n");
+            if (numPreguntas > 0) sb.append("- ").append(numPreguntas).append(" pregunta(s)\n");
+            if (numSubcategorias > 0) sb.append("- ").append(numSubcategorias).append(" subcategoría(s)\n");
+            sb.append("\nSi continúas, se perderá todo este contenido.\n");
         }
 
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, msg, ButtonType.YES, ButtonType.NO);
-        alert.setHeaderText("Confirmar borrado de categoría");
-        if (alert.showAndWait().get() == ButtonType.YES) {
-            // Limpiamos el mapa de datos de esta categoría y todas sus subrutas
+        sb.append("¿Deseas proceder con el borrado?");
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Confirmar borrado de categoría");
+        alert.setHeaderText(null);
+        alert.setContentText(sb.toString());
+
+        ButtonType btnSi = new ButtonType("Sí, borrar todo", ButtonBar.ButtonData.OK_DONE);
+        ButtonType btnNo = new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE);
+        alert.getButtonTypes().setAll(btnSi, btnNo);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == btnSi) {
+            // Limpiamos los datos del mapa para esta ruta y todas sus descendientes
             categoryData.keySet().removeIf(key -> key.startsWith(path));
             
-            // Lo eliminamos del árbol visual
+            // Eliminamos del árbol
             item.getParent().getChildren().remove(item);
+            
+            // Refrescamos la tabla por si estábamos visualizando esa categoría
+            tableView.setItems(FXCollections.observableArrayList());
+            treeView.refresh();
         }
+    }
+
+    /**
+    * Método auxiliar recursivo para contar todos los nodos hijos
+    */
+    private int countSubcategories(TreeItem<String> item) {
+        int count = 1; // Se cuenta a sí mismo
+        for (TreeItem<String> child : item.getChildren()) {
+            count += countSubcategories(child);
+        }
+        return count;
     }
 
     private void expandRecursive(TreeItem<String> i, boolean e) {
