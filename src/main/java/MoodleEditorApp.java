@@ -373,14 +373,45 @@ public class MoodleEditorApp extends Application {
         MenuItem deleteItem = new MenuItem("Borrar Categoría");
         deleteItem.setOnAction(e -> deleteCategory(treeView.getSelectionModel().getSelectedItem()));
 
-        MenuItem ex = new MenuItem("Expandir Todo");
-        ex.setOnAction(e -> expandRecursive(treeView.getSelectionModel().getSelectedItem(), true));
+        MenuItem addCategory = new MenuItem("Añadir subcategoría");
+        addCategory.setOnAction(e -> addNewCategory(treeView.getSelectionModel().getSelectedItem()));
 
-        MenuItem co = new MenuItem("Colapsar Todo");
-        co.setOnAction(e -> expandRecursive(treeView.getSelectionModel().getSelectedItem(), false));
+        MenuItem expandAll = new MenuItem("Expandir Todo");
+        expandAll.setOnAction(e -> expandRecursive(treeView.getSelectionModel().getSelectedItem(), true));
 
-        m.getItems().addAll(ex, co, new SeparatorMenuItem(), deleteItem);
+        MenuItem collapseAll = new MenuItem("Colapsar Todo");
+        collapseAll.setOnAction(e -> expandRecursive(treeView.getSelectionModel().getSelectedItem(), false));
+
+        m.getItems().addAll(expandAll, collapseAll, new SeparatorMenuItem(), deleteItem, addCategory);
         treeView.setContextMenu(m);
+    }
+
+    private void addNewCategory(TreeItem<String> selectedItem) {
+        // Usamos una variable final para la lambda
+        final TreeItem<String> parent = (selectedItem == null) ? treeView.getRoot() : selectedItem;
+
+        TextInputDialog dialog = new TextInputDialog("Nueva Categoría");
+        dialog.setTitle("Crear Subcategoría");
+        dialog.setHeaderText("Añadir una subcategoría dentro de: " + parent.getValue());
+        dialog.setContentText("Nombre de la categoría:");
+
+        Optional<String> result = dialog.showAndWait();
+        
+        result.ifPresent(name -> {
+            if (!name.trim().isEmpty()) {
+                TreeItem<String> newItem = new TreeItem<>(name);
+                parent.getChildren().add(newItem);
+                parent.setExpanded(true);
+                
+                String newPath = getFullPath(newItem);
+                categoryData.putIfAbsent(newPath, FXCollections.observableArrayList());
+                
+                treeView.refresh();
+            } else {
+                Alert alert = new Alert(Alert.AlertType.WARNING, "El nombre no puede estar vacío.");
+                alert.show();
+            }
+        });
     }
 
     private void deleteCategory(TreeItem<String> item) {
