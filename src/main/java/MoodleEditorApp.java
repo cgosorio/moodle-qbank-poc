@@ -127,12 +127,19 @@ public class MoodleEditorApp extends Application {
 
     private void setupTableDragSource() {
         tableView.setOnDragDetected(event -> {
-            if (tableView.getSelectionModel().getSelectedItem() != null) {
-                draggedItem = null; // Indica que movemos una pregunta, no una categoría
+            // Obtenemos todas las preguntas seleccionadas (pueden ser 2, 10, o 500)
+            ObservableList<MoodleQuestion> selected = tableView.getSelectionModel().getSelectedItems();
+            
+            if (!selected.isEmpty()) {
+                draggedItem = null; // Confirmamos que no es una categoría del árbol
+                
                 Dragboard db = tableView.startDragAndDrop(TransferMode.MOVE);
                 ClipboardContent content = new ClipboardContent();
-                content.putString("QUESTION");
+                
+                // Ponemos un identificador en el portapapeles
+                content.putString("MULTIPLE_QUESTIONS"); 
                 db.setContent(content);
+                
                 event.consume();
             }
         });
@@ -160,14 +167,23 @@ public class MoodleEditorApp extends Application {
     }
 
     private void moveQuestionToCategory(TreeItem<String> targetItem) {
-        MoodleQuestion q = tableView.getSelectionModel().getSelectedItem();
-        TreeItem<String> current = treeView.getSelectionModel().getSelectedItem();
-        if (q == null || current == null) return;
-        String oldP = getFullPath(current), newP = getFullPath(targetItem);
-        if (!oldP.equals(newP)) {
-            categoryData.get(oldP).remove(q);
-            categoryData.computeIfAbsent(newP, k -> FXCollections.observableArrayList()).add(q);
-            updateTable(oldP);
+        ObservableList<MoodleQuestion> selectedQuestions = tableView.getSelectionModel().getSelectedItems();
+        TreeItem<String> currentCategoryItem = treeView.getSelectionModel().getSelectedItem();
+        
+        if (selectedQuestions.isEmpty() || currentCategoryItem == null || targetItem == null) return;
+
+        String oldPath = getFullPath(currentCategoryItem);
+        String newPath = getFullPath(targetItem);
+
+        if (!oldPath.equals(newPath)) {
+            // Copiamos a una lista temporal para evitar errores de modificación concurrente
+            List<MoodleQuestion> toMove = new ArrayList<>(selectedQuestions);
+            
+            categoryData.get(oldPath).removeAll(toMove);
+            categoryData.computeIfAbsent(newPath, k -> FXCollections.observableArrayList()).addAll(toMove);
+            
+            updateTable(oldPath);
+            treeView.refresh();
         }
     }
 
@@ -316,20 +332,78 @@ public class MoodleEditorApp extends Application {
     }
 
     private void setupTableColumns() {
-        TableColumn<MoodleQuestion, String> cN = new TableColumn<>("Nombre de la Pregunta");
-        cN.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getName()));
-        tableView.getColumns().add(cN);
+        // Habilitar selección múltiple
+        tableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+
+        TableColumn<MoodleQuestion, String> colName = new TableColumn<>("Nombre de la Pregunta");
+        colName.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getName()));
+        colName.setPrefWidth(400);
+
+        TableColumn<MoodleQuestion, String> colType = new TableColumn<>("Tipo");
+        colType.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getType()));
+        colType.setPrefWidth(100);
+
+        tableView.getColumns().setAll(colName, colType);
+
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, ov, nv) -> {
             if (nv != null) updateDetail(nv);
         });
+        ContextMenu tableMenu = new ContextMenu();
+        MenuItem deleteQuest = new MenuItem("Borrar Pregunta(s) seleccionada(s)");
+        deleteQuest.setOnAction(e -> deleteSelectedQuestions());
+        tableMenu.getItems().add(deleteQuest);
+        tableView.setContextMenu(tableMenu);
+    }
+
+    private void deleteSelectedQuestions() {
+        ObservableList<MoodleQuestion> selected = tableView.getSelectionModel().getSelectedItems();
+        if (selected.isEmpty()) return;
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "¿Borrar " + selected.size() + " pregunta(s)?", ButtonType.YES, ButtonType.NO);
+        if (alert.showAndWait().get() == ButtonType.YES) {
+            String path = getFullPath(treeView.getSelectionModel().getSelectedItem());
+            categoryData.get(path).removeAll(new ArrayList<>(selected));
+            treeView.refresh();
+        }
     }
 
     private void setupTreeContextMenu() {
         ContextMenu m = new ContextMenu();
-        MenuItem ex = new MenuItem("Expandir Todo"); ex.setOnAction(e -> expandRecursive(treeView.getSelectionModel().getSelectedItem(), true));
-        MenuItem co = new MenuItem("Colapsar Todo"); co.setOnAction(e -> expandRecursive(treeView.getSelectionModel().getSelectedItem(), false));
-        m.getItems().addAll(ex, co);
+
+        MenuItem deleteItem = new MenuItem("Borrar Categoría");
+        deleteItem.setOnAction(e -> deleteCategory(treeView.getSelectionModel().getSelectedItem()));
+
+        MenuItem ex = new MenuItem("Expandir Todo");
+        ex.setOnAction(e -> expandRecursive(treeView.getSelectionModel().getSelectedItem(), true));
+
+        MenuItem co = new MenuItem("Colapsar Todo");
+        co.setOnAction(e -> expandRecursive(treeView.getSelectionModel().getSelectedItem(), false));
+
+        m.getItems().addAll(ex, co, new SeparatorMenuItem(), deleteItem);
         treeView.setContextMenu(m);
+    }
+
+    private void deleteCategory(TreeItem<String> item) {
+        if (item == null || item == treeView.getRoot()) return;
+
+        String path = getFullPath(item);
+        int count = categoryData.getOrDefault(path, FXCollections.observableArrayList()).size();
+        boolean hasChildren = !item.getChildren().isEmpty();
+
+        String msg = "¿Estás seguro de borrar '" + item.getValue() + "'?";
+        if (count > 0 || hasChildren) {
+            msg = "La categoría no está vacía (contiene " + count + " preguntas o subcategorías).\n" + msg;
+        }
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, msg, ButtonType.YES, ButtonType.NO);
+        alert.setHeaderText("Confirmar borrado de categoría");
+        if (alert.showAndWait().get() == ButtonType.YES) {
+            // Limpiamos el mapa de datos de esta categoría y todas sus subrutas
+            categoryData.keySet().removeIf(key -> key.startsWith(path));
+            
+            // Lo eliminamos del árbol visual
+            item.getParent().getChildren().remove(item);
+        }
     }
 
     private void expandRecursive(TreeItem<String> i, boolean e) {
