@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) 2026 César Ignacio García Osorio
+ *
+ * Este archivo forma parte de Moodle Question Bank Manager.
+ *
+ * Se distribuye bajo la licencia MIT. Consulta el archivo LICENSE
+ * en la raíz del proyecto para más detalles.
+ */
+
 import org.w3c.dom.Element;
 import java.util.ArrayList;
 import java.util.List;

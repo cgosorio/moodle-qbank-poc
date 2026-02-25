@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) 2026 César Ignacio García Osorio
+ *
+ * Este archivo forma parte de Moodle Question Bank Manager.
+ *
+ * Se distribuye bajo la licencia MIT. Consulta el archivo LICENSE
+ * en la raíz del proyecto para más detalles.
+ */
+
 import javafx.application.Application;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -10,12 +19,15 @@ import javafx.scene.layout.*;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+
 import org.w3c.dom.*;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.*;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+
 import java.io.File;
 import java.util.*;
 
@@ -33,7 +45,7 @@ public class MoodleEditorApp extends Application {
         // --- Interfaz Superior ---
         Button btnLoad = new Button("Cargar XML");
         btnLoad.setOnAction(e -> openFileChooser(primaryStage));
-        Button btnSave = new Button("Guardar XML con Imágenes");
+        Button btnSave = new Button("Guardar XML");
         btnSave.setStyle("-fx-background-color: #d1e7dd;");
         btnSave.setOnAction(e -> saveFileChooser(primaryStage));
         ToolBar toolBar = new ToolBar(btnLoad, btnSave);
