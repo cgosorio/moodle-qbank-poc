@@ -337,7 +337,29 @@ public class MoodleEditorApp extends Application {
         if (q == null) return;
 
         StringBuilder html = new StringBuilder();
-        html.append("<html><body style='font-family: sans-serif; padding: 10px;'>");
+        html.append("<html><head>");
+    
+        // 0. INYECTAR MATHJAX (El cambio mínimo)
+        // 0.a Carga de la librería
+        html.append("<script src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>");
+        // 0.b Configuración de MathHax
+        /* html.append("<script>MathJax = { tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']], displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']] } };</script>"); */
+        html.append("<script>");
+        html.append("MathJax = {");
+        html.append("  tex: {");
+        html.append("    inlineMath: [['$', '$'], ['$$', '$$'], ['\\\\(', '\\\\)']],"); // Añadimos $$ a inline
+        html.append("    displayMath: []"); // Vaciamos displayMath para que no cree bloques
+        html.append("  },");
+        html.append("  chtml: { displayAlign: 'left' }"); // Alinea a la izquierda por si acaso
+        html.append("};");
+        html.append("</script>");
+        
+        // 0.c CSS para eliminar saltos de línea residualtes
+        html.append("<style>");
+        html.append("  body { font-family: sans-serif; padding: 10px; line-height: 1.4; }");
+        html.append("  mjx-container[display=\"true\"] { margin: 0 !important; display: inline-block !important; }");
+        html.append("  .MathJax { white-space: nowrap; }");
+        html.append("</style>");
 
         // 1. Cabecera (Nombre y Tipo) - Igual que antes
         html.append("<div style='background: #f8f9fa; padding: 10px; border-bottom: 2px solid #dee2e6; margin-bottom: 15px;'>");

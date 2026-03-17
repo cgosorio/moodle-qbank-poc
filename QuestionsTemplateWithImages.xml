@@ -169,13 +169,13 @@
     <idnumber></idnumber>
   </question>
 
-<!-- question: 10113368  -->
+<!-- question: 10124391  -->
   <question type="multichoice">
     <name>
-      <text>Pregunta de opción múltiple con solo una respuesa correcta</text>
+      <text>Pregunta de opción múltiple con solo una respuesta correcta</text>
     </name>
     <questiontext format="html">
-      <text><![CDATA[<p dir="ltr" style="text-align: left;">El texto de la pregunta</p>]]></text>
+      <text><![CDATA[¿Cuáles de los siguientes símbolos ortográficos tienen una pareja? ($$E=mc^2, c_i &lt;= \sum_i^{\infty} i$$)]]></text>
     </questiontext>
     <generalfeedback format="html">
       <text></text>
@@ -199,25 +199,31 @@
     </incorrectfeedback>
     <shownumcorrect/>
     <answer fraction="100" format="html">
-      <text><![CDATA[<p dir="ltr" style="text-align: left;">Elección 1 CORRECTA</p>]]></text>
+      <text>Elección 1: { CORRECTA</text>
       <feedback format="html">
         <text></text>
       </feedback>
     </answer>
     <answer fraction="80" format="html">
-      <text><![CDATA[<p dir="ltr" style="text-align: left;">Elección 2 PARCIALMENTE CORRECTA</p>]]></text>
+      <text>Elección 2: } PARCIALMENTE CORRECTA</text>
       <feedback format="html">
         <text></text>
       </feedback>
     </answer>
     <answer fraction="-100" format="html">
-      <text><![CDATA[<p dir="ltr" style="text-align: left;">Elección 3 INCORRECTA</p>]]></text>
+      <text><![CDATA[Elección 3: &amp; INCORRECTA]]></text>
       <feedback format="html">
         <text></text>
       </feedback>
     </answer>
     <answer fraction="-100" format="html">
-      <text><![CDATA[<p dir="ltr" style="text-align: left;">Elección 4 INCORRECTA<br></p>]]></text>
+      <text>Elección 4: % INCORRECTA</text>
+      <feedback format="html">
+        <text></text>
+      </feedback>
+    </answer>
+    <answer fraction="0" format="html">
+      <text>Elección 5: $$E=mc^2, \sum_i^{\infty} i$$</text>
       <feedback format="html">
         <text></text>
       </feedback>
@@ -359,6 +365,126 @@
       <text></text>
     </info>
     <idnumber></idnumber>
+  </question>
+
+<!-- question: 10124617  -->
+  <question type="matching">
+    <name>
+      <text>Emparejamiento con fórmulas LaTeX</text>
+    </name>
+    <questiontext format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">A pesar del extenso trabajo algunos investigadores son recordados sobre todo por la propuesta de una fórmula con la que se asocian. Un ejemplo es el de Pitágoras y su teorema para los triángulos rectángulos catetos $$a$$ y $$b$$ e hipótenusa $$c$$: $$a^2+ b^2=c^2$$.</p><p dir="ltr" style="text-align: left;">¿Podrías asociar estas otras ecuaciones con el científico que las propuso?<br><br></p>]]></text>
+    </questiontext>
+    <generalfeedback format="html">
+      <text></text>
+    </generalfeedback>
+    <defaultgrade>1.0000000</defaultgrade>
+    <penalty>0.3333333</penalty>
+    <hidden>0</hidden>
+    <idnumber></idnumber>
+    <shuffleanswers>true</shuffleanswers>
+    <correctfeedback format="html">
+      <text>Respuesta correcta</text>
+    </correctfeedback>
+    <partiallycorrectfeedback format="html">
+      <text>Respuesta parcialmente correcta.</text>
+    </partiallycorrectfeedback>
+    <incorrectfeedback format="html">
+      <text>Respuesta incorrecta.</text>
+    </incorrectfeedback>
+    <shownumcorrect/>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$E=mc^2$$</p>]]></text>
+      <answer>
+        <text>Albert Einstein</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$F = G\,\dfrac{m_1 m_2}{r^2}$$</p>]]></text>
+      <answer>
+        <text>Isaac Newton</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[$$\nabla \cdot \mathbf{E} = \dfrac{\rho}{\varepsilon_0}$$<br><br><br>]]></text>
+      <answer>
+        <text>James Clerk Maxwell</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$e^{i\pi} + 1 = 0$$<br><br><br></p>]]></text>
+      <answer>
+        <text>Leonhard Euler</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$p + \tfrac{1}{2}\rho v^2 + \rho g h = \text{constante}$$<br><br><br></p>]]></text>
+      <answer>
+        <text>Daniel Bernoulli</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$i\hbar \dfrac{\partial}{\partial t}\Psi = \hat{H}\Psi$$<br><br><br></p>]]></text>
+      <answer>
+        <text>Erwin Schrödinger</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$\Delta x \,\Delta p \ge \dfrac{\hbar}{2}$$<br><br><br></p>]]></text>
+      <answer>
+        <text>Werner Heisenberg</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$E = h\nu$$<br><br></p>]]></text>
+      <answer>
+        <text>Max Planck</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$S = k \ln \Omega$$<br><br><br></p>]]></text>
+      <answer>
+        <text>Ludwig Boltzmann</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$\Delta S \ge \dfrac{Q}{T}$$<br><br><br></p>]]></text>
+      <answer>
+        <text>Rudolf Clausius</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$r_\perp = \dfrac{n_1 \cos\theta_i - n_2 \cos\theta_t}{n_1 \cos\theta_i + n_2 \cos\theta_t}$$<br><br><br></p>]]></text>
+      <answer>
+        <text>Augustin-Jean Fresnel</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$\dfrac{d}{dt}\left(\dfrac{\partial L}{\partial \dot{q}_i}\right) - \dfrac{\partial L}{\partial q_i} = 0$$<br><br><br><br><br></p>]]></text>
+      <answer>
+        <text>Joseph-Louis Lagrange</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$\hat{f}(\omega) = \int_{-\infty}^{\infty} f(t)e^{-i\omega t}\,dt$$<br><br><br><br></p>]]></text>
+      <answer>
+        <text>Jean Baptiste Joseph Fourier</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$A \land (B \lor C) = (A \land B) \lor (A \land C)$$</p>]]></text>
+      <answer>
+        <text>George Boole</text>
+      </answer>
+    </subquestion>
+    <subquestion format="html">
+      <text><![CDATA[<p dir="ltr" style="text-align: left;">$$\dfrac{\partial
+ C}{\partial t} + \tfrac{1}{2}\sigma^2 S^2 \dfrac{\partial^2 C}{\partial
+ S^2} + r S \dfrac{\partial C}{\partial S} - rC = 0$$<br><br><br></p>]]></text>
+      <answer>
+        <text>Fischer Black y Myron Scholes</text>
+      </answer>
+    </subquestion>
   </question>
 
 <!-- question: 10113373  -->
