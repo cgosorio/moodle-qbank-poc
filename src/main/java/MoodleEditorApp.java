@@ -662,36 +662,51 @@ public class MoodleEditorApp extends Application {
      * Solo se usa en la etiqueta de identificación visible antes del widget,
      * no en el widget en sí (que se renderiza como HTML neutro).
      * Cada entrada: { color-de-fondo, color-de-texto }
+     *
+     *   NUMERICAL      → fondo naranja oscuro  / texto blanco
+     *   SHORTANSWER    → fondo azul índigo     / texto blanco
+     *   SHORTANSWER_C  → fondo cian oscuro     / texto blanco  (sensible a mayúsc.)
+     *   MULTICHOICE    → fondo verde bosque    / texto blanco
+     *   MULTIRESPONSE  → fondo púrpura         / texto blanco
+     *
+     * La leyenda del panel se genera automáticamente a partir de este mapa
+     * mediante {@link #buildClozeColors()}, de modo que un cambio aquí se
+     * refleja en toda la interfaz sin tocar más código.
      */
     private static final Map<String, String[]> CLOZE_TYPE_COLORS = Map.ofEntries(
+        // --- Numérica ---
         Map.entry("NUMERICAL",              new String[]{"#b45309", "#ffffff"}),
         Map.entry("NM",                     new String[]{"#b45309", "#ffffff"}),
+        // --- Respuesta corta (insensible a mayúsculas) ---
         Map.entry("SHORTANSWER",            new String[]{"#1d4ed8", "#ffffff"}),
         Map.entry("SA",                     new String[]{"#1d4ed8", "#ffffff"}),
         Map.entry("MW",                     new String[]{"#1d4ed8", "#ffffff"}),
-        Map.entry("SHORTANSWER_C",          new String[]{"#0e7490", "#ffffff"}),
-        Map.entry("SAC",                    new String[]{"#0e7490", "#ffffff"}),
-        Map.entry("MWC",                    new String[]{"#0e7490", "#ffffff"}),
+        // --- Respuesta corta (sensible a mayúsculas) ---
+        Map.entry("SHORTANSWER_C",          new String[]{"#0e7490", "#fffaaf"}),
+        Map.entry("SAC",                    new String[]{"#0e7490", "#fffaaf"}),
+        Map.entry("MWC",                    new String[]{"#0e7490", "#fffaaf"}),
+        // --- Opción múltiple (todas las variantes) ---
         Map.entry("MULTICHOICE",            new String[]{"#15803d", "#ffffff"}),
         Map.entry("MC",                     new String[]{"#15803d", "#ffffff"}),
         Map.entry("MULTICHOICE_V",          new String[]{"#15803d", "#ffffff"}),
         Map.entry("MCV",                    new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MULTICHOICE_H",          new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MCH",                    new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MULTICHOICE_S",          new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MCS",                    new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MULTICHOICE_VS",         new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MCVS",                   new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MULTICHOICE_HS",         new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MCHS",                   new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MULTICHOICE_H",          new String[]{"#15803d", "#fffaaf"}),
+        Map.entry("MCH",                    new String[]{"#15803d", "#fffaaf"}),
+        Map.entry("MULTICHOICE_S",          new String[]{"#15803d", "#ffaaff"}),
+        Map.entry("MCS",                    new String[]{"#15803d", "#ffaaff"}),
+        Map.entry("MULTICHOICE_VS",         new String[]{"#15803d", "#aaffff"}),
+        Map.entry("MCVS",                   new String[]{"#15803d", "#aaffff"}),
+        Map.entry("MULTICHOICE_HS",         new String[]{"#15803d", "#dddddd"}),
+        Map.entry("MCHS",                   new String[]{"#15803d", "#dddddd"}),
+        // --- Respuesta múltiple (todas las variantes) ---
         Map.entry("MULTIRESPONSE",          new String[]{"#7e22ce", "#ffffff"}),
         Map.entry("MR",                     new String[]{"#7e22ce", "#ffffff"}),
-        Map.entry("MULTIRESPONSE_H",        new String[]{"#7e22ce", "#ffffff"}),
-        Map.entry("MRH",                    new String[]{"#7e22ce", "#ffffff"}),
-        Map.entry("MULTIRESPONSE_S",        new String[]{"#7e22ce", "#ffffff"}),
-        Map.entry("MRS",                    new String[]{"#7e22ce", "#ffffff"}),
-        Map.entry("MULTIRESPONSE_HS",       new String[]{"#7e22ce", "#ffffff"}),
-        Map.entry("MRHS",                   new String[]{"#7e22ce", "#ffffff"})
+        Map.entry("MULTIRESPONSE_H",        new String[]{"#7e22ce", "#fffaaf"}),
+        Map.entry("MRH",                    new String[]{"#7e22ce", "#fffaaf"}),
+        Map.entry("MULTIRESPONSE_S",        new String[]{"#7e22ce", "#ffaaff"}),
+        Map.entry("MRS",                    new String[]{"#7e22ce", "#ffaaff"}),
+        Map.entry("MULTIRESPONSE_HS",       new String[]{"#7e22ce", "#aaffff"}),
+        Map.entry("MRHS",                   new String[]{"#7e22ce", "#aaffff"})
     );
 
     /**
@@ -709,11 +724,16 @@ public class MoodleEditorApp extends Application {
         { "MULTIRESPONSE_H","Respuesta múltiple – horizontal (checkbox)","MRH, MRHS"                    },
     };
 
-    /** Genera el HTML de la leyenda leyendo colores de {@link #CLOZE_TYPE_COLORS}. */
+    /**
+     * Genera el HTML del bloque de leyenda leyendo los colores directamente
+     * de {@link #CLOZE_TYPE_COLORS}, de forma que cualquier cambio en la paleta
+     * se refleja automáticamente aquí.
+     */
     private String buildClozeColors() {
         StringBuilder sb = new StringBuilder();
         sb.append("<div style='font-size:0.8em;color:#555;margin-bottom:15px;")
-          .append("border:1px solid #dee2e6;border-radius:4px;padding:8px 10px;background:#f8f9fa;'>");
+          .append("border:1px solid #dee2e6; border-radius:4px; padding:8px 10px; ")
+          .append("background:#f8f9fa;'>");
         sb.append("<strong>Leyenda de subpreguntas cloze:</strong>");
         sb.append("<table style='margin-top:6px;border-collapse:collapse;width:100%;'>");
         for (String[] row : CLOZE_LEGEND_ROWS) {
@@ -732,6 +752,7 @@ public class MoodleEditorApp extends Application {
     }
 
     // Patrón principal: captura el token cloze completo.
+    // Replica ANSWER_REGEX de MultiAnswerExtract (del PHP de Moodle), compilada una sola vez.
     // grupo 1 = puntuación  |  grupo 2 = tipo  |  grupo 3 = alternativas en bruto
     private static final Pattern CLOZE_TOKEN_PAT = Pattern.compile(
         "\\{([0-9]*):" +
@@ -1002,7 +1023,7 @@ public class MoodleEditorApp extends Application {
         return sb.toString();
     }
 
-    /** Escapa caracteres especiales para uso en atributos HTML (title, value, etc.). */
+    /** Escapa solo los caracteres especiales de un atributo HTML (title, etc.). */
     private static String escapeHtmlAttr(String text) {
         return text
             .replace("&",  "&amp;")
