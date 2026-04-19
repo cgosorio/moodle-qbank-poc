@@ -47,6 +47,7 @@ public class MoodleEditorApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        // --- Interfaz Superior ---
         Button btnLoad = new Button("Cargar XML");
         btnLoad.setOnAction(e -> openFileChooser(primaryStage));
 
@@ -56,6 +57,7 @@ public class MoodleEditorApp extends Application {
 
         ToolBar toolBar = new ToolBar(btnLoad, btnSave);
 
+        // --- Árbol (Izquierda) ---
         TreeItem<String> rootItem = new TreeItem<>("Banco de Preguntas");
         rootItem.setExpanded(true);
         treeView = new TreeView<>(rootItem);
@@ -65,10 +67,12 @@ public class MoodleEditorApp extends Application {
             if (nv != null) updateTable(getFullPath(nv));
         });
 
+        // --- Tabla (Derecha Arriba) ---
         tableView = new TableView<>();
         setupTableColumns();
         setupTableDragSource();
 
+        // --- Detalle (Derecha Abajo) ---
         webView = new WebView();
         editorArea = new TextArea();
 
@@ -97,6 +101,7 @@ public class MoodleEditorApp extends Application {
         VBox.setVgrow(editorArea, Priority.ALWAYS);
         detailBox.setPadding(new Insets(10));
 
+        // --- Layout Principal ---
         SplitPane rightSplit = new SplitPane(tableView, detailBox);
         rightSplit.setOrientation(javafx.geometry.Orientation.VERTICAL);
         rightSplit.setDividerPositions(0.4);
@@ -169,13 +174,19 @@ public class MoodleEditorApp extends Application {
 
     private void setupTableDragSource() {
         tableView.setOnDragDetected(event -> {
+            // Obtenemos todas las preguntas seleccionadas (pueden ser 2, 10, o 500)
             ObservableList<MoodleQuestion> selected = tableView.getSelectionModel().getSelectedItems();
+            
             if (!selected.isEmpty()) {
-                draggedItem = null;
+                draggedItem = null; // Confirmamos que no es una categoría del árbol
+                
                 Dragboard db = tableView.startDragAndDrop(TransferMode.MOVE);
                 ClipboardContent content = new ClipboardContent();
+                
+                // Ponemos un identificador en el portapapeles
                 content.putString("MULTIPLE_QUESTIONS");
                 db.setContent(content);
+                
                 event.consume();
             }
         });
@@ -217,9 +228,12 @@ public class MoodleEditorApp extends Application {
         String newPath = getFullPath(targetItem);
 
         if (!oldPath.equals(newPath)) {
+            // Copiamos a una lista temporal para evitar errores de modificación concurrente
             List<MoodleQuestion> toMove = new ArrayList<>(selectedQuestions);
+
             categoryData.get(oldPath).removeAll(toMove);
             categoryData.computeIfAbsent(newPath, k -> FXCollections.observableArrayList()).addAll(toMove);
+
             updateTable(oldPath);
             treeView.refresh();
         }
@@ -244,9 +258,12 @@ public class MoodleEditorApp extends Application {
         if (f != null) exportToXML(f);
     }
 
+// ... dentro de la clase MoodleEditorApp ...
+
     private void loadXML(File file) {
         try {
-            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file);
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            Document doc = dbf.newDocumentBuilder().parse(file);
             doc.getDocumentElement().normalize();
             NodeList nl = doc.getElementsByTagName("question");
             String curP = "Banco de Preguntas";
@@ -257,13 +274,14 @@ public class MoodleEditorApp extends Application {
                     if ("category".equals(el.getAttribute("type"))) {
                         curP = buildTreeFromMoodlePath(getVal(el, "category"));
                     } else {
+                        // Pasamos el elemento 'el' completo al constructor
                         MoodleQuestion q = new MoodleQuestion(
                             el.getAttribute("type"),
                             getVal(el, "name"),
                             getVal(el, "questiontext"),
                             el
                         );
-
+                        
                         NodeList fileNodes = el.getElementsByTagName("file");
                         for (int j = 0; j < fileNodes.getLength(); j++) {
                             Element fEl = (Element) fileNodes.item(j);
@@ -301,7 +319,8 @@ public class MoodleEditorApp extends Application {
 
     private void exportToXML(File file) {
         try {
-            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            Document doc = dbf.newDocumentBuilder().newDocument();
             Element root = doc.createElement("quiz");
             doc.appendChild(root);
 
@@ -311,7 +330,7 @@ public class MoodleEditorApp extends Application {
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
             transformer.transform(new DOMSource(doc), new StreamResult(file));
-
+            
             new Alert(Alert.AlertType.INFORMATION, "Archivo exportado correctamente para Moodle.").show();
         } catch (Exception e) {
             e.printStackTrace();
@@ -322,7 +341,8 @@ public class MoodleEditorApp extends Application {
     private void traverseAndExport(TreeItem<String> item, Element root, Document doc) {
         if (item != treeView.getRoot()) {
             String path = getFullPath(item);
-
+            
+            // 1. Exportar Nodo de Categoría
             Element catQ = doc.createElement("question");
             catQ.setAttribute("type", "category");
             Element cat = doc.createElement("category");
@@ -332,9 +352,11 @@ public class MoodleEditorApp extends Application {
             catQ.appendChild(cat);
             root.appendChild(catQ);
 
+            // 2. Exportar Preguntas (Copia profunda del XML original)
             List<MoodleQuestion> qs = categoryData.get(path);
             if (qs != null) {
                 for (MoodleQuestion q : qs) {
+                    // Esta línea es la que salva las respuestas y calificaciones
                     Node importedNode = doc.importNode(q.getOriginalElement(), true);
                     root.appendChild(importedNode);
                 }
@@ -351,16 +373,23 @@ public class MoodleEditorApp extends Application {
 
         StringBuilder html = new StringBuilder();
         html.append("<html><head>");
+    
+        // 0. INYECTAR MATHJAX (El cambio mínimo)
+        // 0.a Carga de la librería
         html.append("<script src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>");
+        // 0.b Configuración de MathJax
+        /* html.append("<script>MathJax = { tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']], displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']] } };</script>"); */
         html.append("<script>");
         html.append("MathJax = {");
         html.append("  tex: {");
-        html.append("    inlineMath: [['$', '$'], ['$$', '$$'], ['\\\\(', '\\\\)']],");
-        html.append("    displayMath: []");
+        html.append("    inlineMath: [['$', '$'], ['$$', '$$'], ['\\\\(', '\\\\)']],"); // Añadimos $$ a inline
+        html.append("    displayMath: []"); // Vaciamos displayMath para que no cree bloques
         html.append("  },");
-        html.append("  chtml: { displayAlign: 'left' }");
+        html.append("  chtml: { displayAlign: 'left' }"); // Alinea a la izquierda por si acaso
         html.append("};");
         html.append("</script>");
+        
+        // 0.c CSS para eliminar saltos de línea residualtes
         html.append("<style>");
         html.append("  body { font-family: sans-serif; padding: 10px; line-height: 1.4; }");
         html.append("  mjx-container[display=\"true\"] { margin: 0 !important; display: inline-block !important; }");
@@ -368,11 +397,13 @@ public class MoodleEditorApp extends Application {
         html.append("  .mode-note { margin: 0 0 10px 0; padding: 8px 10px; border-radius: 4px; background: #eef5ff; color: #355070; font-size: 0.9em; }");
         html.append("</style>");
 
+        // 1. Cabecera (Nombre y Tipo) - Igual que antes
         html.append("<div style='background: #f8f9fa; padding: 10px; border-bottom: 2px solid #dee2e6; margin-bottom: 15px;'>");
         html.append("<strong>Nombre:</strong> ").append(q.getName()).append("<br>");
         html.append("<strong>Tipo:</strong> <span style='color: #0d6efd;'>").append(q.getType()).append("</span>");
         html.append("</div>");
 
+        // 2. Enunciado (Con soporte para imágenes y resaltado de tokens cloze)
         String body = resolveQuestionBody(q);
 
         if ("cloze".equals(q.getType())) {
@@ -387,11 +418,14 @@ public class MoodleEditorApp extends Application {
 
         html.append("<div style='margin-bottom: 20px;'>").append(body).append("</div>");
 
+        // Si es cloze, mostramos una leyenda de colores generada desde CLOZE_TYPE_COLORS
         if ("cloze".equals(q.getType())) {
             // html.append(buildClozeColors()); // this add to much 'noise'
         }
 
+        // 3. Lógica de Respuestas según el tipo
         if ("matching".equals(q.getType())) {
+            // --- CASO PREGUNTAS DE EMPAREJAMIENTO ---
             html.append("<h4>Pares de Emparejamiento:</h4>");
             html.append("<table border='1' style='border-collapse: collapse; width: 100%; font-size: 0.9em;'>");
             html.append("<tr style='background: #e9ecef;'><th style='padding: 5px;'>Pregunta / Estímulo</th><th style='padding: 5px;'>Respuesta Correcta</th></tr>");
@@ -400,6 +434,8 @@ public class MoodleEditorApp extends Application {
             for (int i = 0; i < subquestions.getLength(); i++) {
                 Element sub = (Element) subquestions.item(i);
                 String subText = getNestedText(sub);
+                
+                // La respuesta correcta en emparejamiento está en un subnodo <answer><text>
                 String subAnswer = "";
                 NodeList subAnsList = sub.getElementsByTagName("answer");
                 if (subAnsList.getLength() > 0) {
@@ -415,6 +451,7 @@ public class MoodleEditorApp extends Application {
             }
             html.append("</table>");
         } else {
+            // --- CASO OPCIÓN MÚLTIPLE / VERDADERO-FALSO (Nodo <answer>) ---
             NodeList answers = q.getOriginalElement().getElementsByTagName("answer");
             if (answers.getLength() > 0) {
                 html.append("<h4>Opciones de Respuesta:</h4>");
@@ -425,7 +462,7 @@ public class MoodleEditorApp extends Application {
                     Element ans = (Element) answers.item(i);
                     String fraction = ans.getAttribute("fraction");
                     String answerText = getNestedText(ans);
-
+                    
                     String feedbackText = "";
                     NodeList fbNodes = ans.getElementsByTagName("feedback");
                     if (fbNodes.getLength() > 0) {
@@ -455,6 +492,7 @@ public class MoodleEditorApp extends Application {
         editorArea.setText(q.getQuestionText());
     }
 
+    // Método auxiliar para obtener valores de tags simples sin <text>
     private String resolveQuestionBody(MoodleQuestion q) {
         String body = q.getQuestionText();
         for (MoodleFile f : q.getFiles()) {
@@ -468,16 +506,22 @@ public class MoodleEditorApp extends Application {
         return body;
     }
 
+    /**
+    * Busca el primer nodo <text> dentro de un elemento y devuelve su contenido.
+    * Útil para extraer el contenido de <answer>, <feedback>, <name>, etc.
+    */
     private String getNestedText(Element parent) {
         if (parent == null) return "";
         NodeList nl = parent.getElementsByTagName("text");
         if (nl.getLength() > 0) {
             return nl.item(0).getTextContent();
         }
+        // Si no tiene subnodo <text>, intentamos el contenido directo (por si acaso)
         return parent.getTextContent() != null ? parent.getTextContent().trim() : "";
     }
 
     private void setupTableColumns() {
+        // Habilitar selección múltiple
         tableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
         TableColumn<MoodleQuestion, String> colName = new TableColumn<>("Nombre de la Pregunta");
@@ -533,6 +577,7 @@ public class MoodleEditorApp extends Application {
     }
 
     private void addNewCategory(TreeItem<String> selectedItem) {
+        // Usamos una variable final para la lambda
         final TreeItem<String> parent = (selectedItem == null) ? treeView.getRoot() : selectedItem;
 
         TextInputDialog dialog = new TextInputDialog("Nueva Categoría");
@@ -546,12 +591,14 @@ public class MoodleEditorApp extends Application {
                 TreeItem<String> newItem = new TreeItem<>(name);
                 parent.getChildren().add(newItem);
                 parent.setExpanded(true);
-
+                
                 String newPath = getFullPath(newItem);
                 categoryData.putIfAbsent(newPath, FXCollections.observableArrayList());
+                
                 treeView.refresh();
             } else {
-                new Alert(Alert.AlertType.WARNING, "El nombre no puede estar vacío.").show();
+                Alert alert = new Alert(Alert.AlertType.WARNING, "El nombre no puede estar vacío.");
+                alert.show();
             }
         });
     }
@@ -560,9 +607,15 @@ public class MoodleEditorApp extends Application {
         if (item == null || item == treeView.getRoot()) return;
 
         String path = getFullPath(item);
+        
+        // 1. Contar preguntas en esta categoría específica
         int numPreguntas = categoryData.getOrDefault(path, FXCollections.observableArrayList()).size();
+        
+        // 2. Contar subcategorías (descendientes directos e indirectos)
+        // Restamos 1 porque el método cuenta también el item actual
         int numSubcategorias = countSubcategories(item) - 1;
 
+        // 3. Preparar el mensaje dinámico
         StringBuilder sb = new StringBuilder();
         sb.append("Estás a punto de borrar la categoría: '").append(item.getValue()).append("'\n\n");
 
@@ -586,13 +639,21 @@ public class MoodleEditorApp extends Application {
 
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == btnSi) {
+            // Limpiamos los datos del mapa para esta ruta y todas sus descendientes
             categoryData.keySet().removeIf(key -> key.startsWith(path));
+            
+            // Eliminamos del árbol
             item.getParent().getChildren().remove(item);
+            
+            // Refrescamos la tabla por si estábamos visualizando esa categoría
             tableView.setItems(FXCollections.observableArrayList());
             treeView.refresh();
         }
     }
 
+    /**
+    * Método auxiliar recursivo para contar todos los nodos hijos
+    */
     private int countSubcategories(TreeItem<String> item) {
         int count = 1;
         for (TreeItem<String> child : item.getChildren()) {
@@ -637,52 +698,84 @@ public class MoodleEditorApp extends Application {
         tableView.setItems(categoryData.getOrDefault(p, FXCollections.observableArrayList()));
     }
 
+    // -----------------------------------------------------------------------
+    // Soporte para sintaxis Cloze (type="cloze")
+    // Extraído y adaptado de MultiAnswerExtract.java
+    // -----------------------------------------------------------------------
+
+    /**
+     * Color de fondo de la etiqueta de tipo para cada familia cloze.
+     * Solo se usa en la etiqueta de identificación visible antes del widget,
+     * no en el widget en sí (que se renderiza como HTML neutro).
+     * Cada entrada: { color-de-fondo, color-de-texto }
+     *
+     *   NUMERICAL      → fondo naranja oscuro  / texto blanco
+     *   SHORTANSWER    → fondo azul índigo     / texto blanco
+     *   SHORTANSWER_C  → fondo cian oscuro     / texto blanco  (sensible a mayúsc.)
+     *   MULTICHOICE    → fondo verde bosque    / texto blanco
+     *   MULTIRESPONSE  → fondo púrpura         / texto blanco
+     *
+     * La leyenda del panel se genera automáticamente a partir de este mapa
+     * mediante {@link #buildClozeColors()}, de modo que un cambio aquí se
+     * refleja en toda la interfaz sin tocar más código.
+     */
     private static final Map<String, String[]> CLOZE_TYPE_COLORS = Map.ofEntries(
-        Map.entry("NUMERICAL", new String[]{"#b45309", "#ffffff"}),
-        Map.entry("NM", new String[]{"#b45309", "#ffffff"}),
-
-        Map.entry("SHORTANSWER", new String[]{"#1d4ed8", "#ffffff"}),
-        Map.entry("SA", new String[]{"#1d4ed8", "#ffffff"}),
-        Map.entry("MW", new String[]{"#1d4ed8", "#ffffff"}),
-
-        Map.entry("SHORTANSWER_C", new String[]{"#0e7490", "#fffaaf"}),
-        Map.entry("SAC", new String[]{"#0e7490", "#fffaaf"}),
-        Map.entry("MWC", new String[]{"#0e7490", "#fffaaf"}),
-
-        Map.entry("MULTICHOICE", new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MC", new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MULTICHOICE_V", new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MCV", new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MULTICHOICE_H", new String[]{"#15803d", "#fffa0f"}),
-        Map.entry("MCH", new String[]{"#15803d", "#fffa0f"}),
-        Map.entry("MULTICHOICE_S", new String[]{"#15803d", "#ffaa0f"}),
-        Map.entry("MCS", new String[]{"#15803d", "#ffaa0f"}),
-        Map.entry("MULTICHOICE_VS", new String[]{"#15803d", "#aaffff"}),
-        Map.entry("MCVS", new String[]{"#15803d", "#ffff8f"}),
-        Map.entry("MULTICHOICE_HS", new String[]{"#15803d", "#dddd4d"}),
-        Map.entry("MCHS", new String[]{"#15803d", "#dddd4d"}),
-
-        Map.entry("MULTIRESPONSE", new String[]{"#7e22ce", "#ffffff"}),
-        Map.entry("MR", new String[]{"#7e22ce", "#ffffff"}),
-        Map.entry("MULTIRESPONSE_H", new String[]{"#7e22ce", "#fffaaf"}),
-        Map.entry("MRH", new String[]{"#7e22ce", "#fffaaf"}),
-        Map.entry("MULTIRESPONSE_S", new String[]{"#7e22ce", "#ffaa0f"}),
-        Map.entry("MRS", new String[]{"#7e22ce", "#ffaa0f"}),
-        Map.entry("MULTIRESPONSE_HS", new String[]{"#7e22ce", "#aaff8f"}),
-        Map.entry("MRHS", new String[]{"#7e22ce", "#aaff8f"})
+        // --- Numérica ---
+        Map.entry("NUMERICAL",              new String[]{"#b45309", "#ffffff"}),
+        Map.entry("NM",                     new String[]{"#b45309", "#ffffff"}),
+        // --- Respuesta corta (insensible a mayúsculas) ---
+        Map.entry("SHORTANSWER",            new String[]{"#1d4ed8", "#ffffff"}),
+        Map.entry("SA",                     new String[]{"#1d4ed8", "#ffffff"}),
+        Map.entry("MW",                     new String[]{"#1d4ed8", "#ffffff"}),
+        // --- Respuesta corta (sensible a mayúsculas) ---
+        Map.entry("SHORTANSWER_C",          new String[]{"#0e7490", "#fffaaf"}),
+        Map.entry("SAC",                    new String[]{"#0e7490", "#fffaaf"}),
+        Map.entry("MWC",                    new String[]{"#0e7490", "#fffaaf"}),
+        // --- Opción múltiple (todas las variantes) ---
+        Map.entry("MULTICHOICE",            new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MC",                     new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MULTICHOICE_V",          new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MCV",                    new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MULTICHOICE_H",          new String[]{"#15803d", "#fffaaf"}),
+        Map.entry("MCH",                    new String[]{"#15803d", "#fffaaf"}),
+        Map.entry("MULTICHOICE_S",          new String[]{"#15803d", "#ffaaff"}),
+        Map.entry("MCS",                    new String[]{"#15803d", "#ffaaff"}),
+        Map.entry("MULTICHOICE_VS",         new String[]{"#15803d", "#aaffff"}),
+        Map.entry("MCVS",                   new String[]{"#15803d", "#aaffff"}),
+        Map.entry("MULTICHOICE_HS",         new String[]{"#15803d", "#dddddd"}),
+        Map.entry("MCHS",                   new String[]{"#15803d", "#dddddd"}),
+        // --- Respuesta múltiple (todas las variantes) ---
+        Map.entry("MULTIRESPONSE",          new String[]{"#7e22ce", "#ffffff"}),
+        Map.entry("MR",                     new String[]{"#7e22ce", "#ffffff"}),
+        Map.entry("MULTIRESPONSE_H",        new String[]{"#7e22ce", "#fffaaf"}),
+        Map.entry("MRH",                    new String[]{"#7e22ce", "#fffaaf"}),
+        Map.entry("MULTIRESPONSE_S",        new String[]{"#7e22ce", "#ffaaff"}),
+        Map.entry("MRS",                    new String[]{"#7e22ce", "#ffaaff"}),
+        Map.entry("MULTIRESPONSE_HS",       new String[]{"#7e22ce", "#aaffff"}),
+        Map.entry("MRHS",                   new String[]{"#7e22ce", "#aaffff"})
     );
 
+    /**
+     * Filas de la leyenda: { clave canónica, descripción, aliases }.
+     * El orden aquí es el orden de aparición en la leyenda.
+     * Cada fila: { clave canónica en CLOZE_TYPE_COLORS, etiqueta visible, aliases }.
+     */
     private static final String[][] CLOZE_LEGEND_ROWS = {
-        { "SHORTANSWER",    "Respuesta corta",                              "SA, MW" },
-        { "SHORTANSWER_C",  "Respuesta corta (con distinción mayúsc.)",     "SAC, MWC" },
-        { "NUMERICAL",      "Numérica",                                     "NM" },
-        { "MULTICHOICE",    "Opción múltiple – desplegable",                "MC, MCS" },
-        { "MULTICHOICE_V",  "Opción múltiple – vertical (radio)",           "MCV, MCVS" },
-        { "MULTICHOICE_H",  "Opción múltiple – horizontal (radio)",         "MCH, MCHS" },
-        { "MULTIRESPONSE",  "Respuesta múltiple – vertical (checkbox)",     "MR, MRS" },
-        { "MULTIRESPONSE_H", "Respuesta múltiple – horizontal (checkbox)",  "MRH, MRHS" }
+        { "SHORTANSWER",   "Respuesta corta",  "SA, MW"                              },
+        { "SHORTANSWER_C", "Respuesta corta (con distinción mayúsc.)",  "SAC, MWC"   },
+        { "NUMERICAL",     "Numérica",                                  "NM"         },
+        { "MULTICHOICE",   "Opción múltiple – desplegable",             "MC, MCS"    },
+        { "MULTICHOICE_V", "Opción múltiple – vertical (radio)",        "MCV, MCVS"  },
+        { "MULTICHOICE_H", "Opción múltiple – horizontal (radio)",      "MCH, MCHS"  },
+        { "MULTIRESPONSE", "Respuesta múltiple – vertical (checkbox)",  "MR, MRS"    },
+        { "MULTIRESPONSE_H","Respuesta múltiple – horizontal (checkbox)","MRH, MRHS" },
     };
 
+    /**
+     * Genera el HTML del bloque de leyenda leyendo los colores directamente
+     * de {@link #CLOZE_TYPE_COLORS}, de forma que cualquier cambio en la paleta
+     * se refleja automáticamente aquí.
+     */
     private String buildClozeColors() {
         StringBuilder sb = new StringBuilder();
         sb.append("<div style='font-size:0.8em; color:#555; margin-bottom:15px; ")
@@ -705,6 +798,9 @@ public class MoodleEditorApp extends Application {
         return sb.toString();
     }
 
+    // Expresión regular que detecta tokens cloze completos en el enunciado.
+    // Replica ANSWER_REGEX de MultiAnswerExtract (del PHP de Moodle), compilada una sola vez.
+    // grupo 1 = puntuación  |  grupo 2 = tipo  |  grupo 3 = alternativas en bruto
     private static final Pattern CLOZE_TOKEN_PAT = Pattern.compile(
         "\\{([0-9]*):" +
         "(NUMERICAL|NM" +
@@ -718,10 +814,13 @@ public class MoodleEditorApp extends Application {
         Pattern.DOTALL
     );
 
+    /**
+     * Representa una alternativa parseada de un token cloze.
+     */
     private static class ClozeAlt {
-        final double fraction;
-        final String text;
-        final String feedback;
+        final double fraction; // 1.0 = correcta, 0.0 = incorrecta, negativo = penalización
+        final String text;     // texto HTML de la opción (puede contener <img>)
+        final String feedback; // puede estar vacío
 
         ClozeAlt(double fraction, String text, String feedback) {
             this.fraction = fraction;
@@ -730,8 +829,13 @@ public class MoodleEditorApp extends Application {
         }
     }
 
+    /**
+     * Parsea la cadena de alternativas de un token cloze en una lista de {@link ClozeAlt}.
+     * Las alternativas se separan por '~' sin escapar.
+     */
     private static List<ClozeAlt> parseClozeAlternatives(String raw) {
         List<ClozeAlt> result = new ArrayList<>();
+        // Dividimos por '~' que no estén escapados con '\'
         String[] parts = raw.split("(?<!\\\\)~");
         for (String part : parts) {
             part = part.trim();
@@ -741,6 +845,7 @@ public class MoodleEditorApp extends Application {
             String text;
             String feedback = "";
 
+            // Detectar prefijo de fracción
             if (part.startsWith("=")) {
                 fraction = 1.0;
                 part = part.substring(1);
@@ -752,6 +857,7 @@ public class MoodleEditorApp extends Application {
                 }
             }
 
+            // Separar feedback (tras '#' no escapado)
             int hashIdx = -1;
             for (int i = 0; i < part.length(); i++) {
                 if (part.charAt(i) == '#' && (i == 0 || part.charAt(i - 1) != '\\')) {
@@ -765,15 +871,28 @@ public class MoodleEditorApp extends Application {
             } else {
                 text = part;
             }
-
+            // Unescape
             text = text.replace("\\}", "}").replace("\\~", "~").replace("\\=", "=");
+
             result.add(new ClozeAlt(fraction, text, feedback));
         }
         return result;
     }
 
+    /**
+     * Genera un contador HTML de subpregunta único para el uso como id/name de input.
+     */
     private int clozeWidgetCounter = 0;
 
+    /**
+     * Genera la etiqueta de tipo (badge) con su color y el widget HTML
+     * que simula el comportamiento de Moodle en un cuestionario.
+     *
+     * @param typeKey tipo en mayúsculas tal como aparece en el XML (ej. "MULTICHOICE_V")
+     * @param points  puntuación del token
+     * @param alts    alternativas ya parseadas
+     * @return HTML del badge + widget, para insertar inline en el enunciado
+     */
     private String buildClozeWidget(String typeKey, String points, List<ClozeAlt> alts) {
         clozeWidgetCounter++;
         String id = "cq" + clozeWidgetCounter;
@@ -781,6 +900,7 @@ public class MoodleEditorApp extends Application {
         String bg = colors[0];
         String fg = colors[1];
 
+        // Badge con tipo y puntuación
         String badge =
             "<span title='" + points + " pt' style='" +
             "background:" + bg + ";color:" + fg + ";" +
@@ -790,7 +910,11 @@ public class MoodleEditorApp extends Application {
 
         StringBuilder widget = new StringBuilder();
 
+        // ── SHORTANSWER / SHORTANSWER_C / NUMERICAL ─────────────────────────
+        // La respuesta correcta (fracción == 1.0, o la de mayor fracción) se
+        // muestra como placeholder del campo de texto.
         if (typeKey.matches("SHORTANSWER|SA|MW|SHORTANSWER_C|SAC|MWC|NUMERICAL|NM")) {
+            // Respuesta correcta: primera con fracción == 1.0, si no la de mayor fracción
             String correct = alts.stream()
                 .filter(a -> a.fraction == 1.0)
                 .map(a -> a.text.replaceAll("<[^>]+>", ""))
@@ -806,13 +930,19 @@ public class MoodleEditorApp extends Application {
                   .append("' placeholder='").append(escapeHtmlAttr(correct)).append("'")
                   .append(" style='border:1px solid #999;border-radius:3px;padding:1px 3px;")
                   .append("font-style:italic;color:#666;' />");
-        } else if (typeKey.matches("MULTICHOICE|MC|MULTICHOICE_S|MCS")) {
+        }
+        // ── MULTICHOICE / MC / MCS  → desplegable <select> ──────────────────
+        // La opción correcta se muestra seleccionada, en verde y negrita.
+        // Nota: el atributo 'style' en <option> tiene soporte limitado en algunos
+        // navegadores, pero JavaFX WebView (basado en WebKit) sí lo respeta.
+        else if (typeKey.matches("MULTICHOICE|MC|MULTICHOICE_S|MCS")) {
             widget.append("<select id='").append(id)
                   .append("' style='border:1px solid #999;border-radius:3px;padding:1px;'>")
                   .append("<option value=''>Selecciona...</option>");
             for (int i = 0; i < alts.size(); i++) {
                 ClozeAlt a = alts.get(i);
                 boolean correct = a.fraction == 1.0;
+                // Fracción formateada para el tooltip de la opción
                 String pct = formatFraction(a.fraction);
                 widget.append("<option value='").append(i).append("'")
                       .append(correct ? " selected" : "")
@@ -825,7 +955,9 @@ public class MoodleEditorApp extends Application {
                       .append("</option>");
             }
             widget.append("</select>");
-        } else if (typeKey.matches("MULTICHOICE_V|MCV|MULTICHOICE_VS|MCVS")) {
+        }
+        // ── MULTICHOICE_V / MCV / MCVS → radio vertical ──────────────────────
+        else if (typeKey.matches("MULTICHOICE_V|MCV|MULTICHOICE_VS|MCVS")) {
             widget.append("<span style='display:inline-block;vertical-align:top;'>");
             for (int i = 0; i < alts.size(); i++) {
                 ClozeAlt a = alts.get(i);
@@ -839,7 +971,9 @@ public class MoodleEditorApp extends Application {
                       .append("</label>");
             }
             widget.append("</span>");
-        } else if (typeKey.matches("MULTICHOICE_H|MCH|MULTICHOICE_HS|MCHS")) {
+        }
+        // ── MULTICHOICE_H / MCH / MCHS → radio horizontal ────────────────────
+        else if (typeKey.matches("MULTICHOICE_H|MCH|MULTICHOICE_HS|MCHS")) {
             widget.append("<span style='display:inline-block;vertical-align:top;'>");
             for (int i = 0; i < alts.size(); i++) {
                 ClozeAlt a = alts.get(i);
@@ -853,7 +987,9 @@ public class MoodleEditorApp extends Application {
                       .append("</label>");
             }
             widget.append("</span>");
-        } else if (typeKey.matches("MULTIRESPONSE|MR|MULTIRESPONSE_S|MRS")) {
+        }
+        // ── MULTIRESPONSE / MR / MRS → checkbox vertical ─────────────────────
+        else if (typeKey.matches("MULTIRESPONSE|MR|MULTIRESPONSE_S|MRS")) {
             widget.append("<span style='display:inline-block;vertical-align:top;'>");
             for (int i = 0; i < alts.size(); i++) {
                 ClozeAlt a = alts.get(i);
@@ -867,7 +1003,9 @@ public class MoodleEditorApp extends Application {
                       .append("</label>");
             }
             widget.append("</span>");
-        } else if (typeKey.matches("MULTIRESPONSE_H|MRH|MULTIRESPONSE_HS|MRHS")) {
+        }
+        // ── MULTIRESPONSE_H / MRH / MRHS → checkbox horizontal ───────────────
+        else if (typeKey.matches("MULTIRESPONSE_H|MRH|MULTIRESPONSE_HS|MRHS")) {
             widget.append("<span style='display:inline-block;vertical-align:top;'>");
             for (int i = 0; i < alts.size(); i++) {
                 ClozeAlt a = alts.get(i);
@@ -883,9 +1021,14 @@ public class MoodleEditorApp extends Application {
             widget.append("</span>");
         }
 
-        return badge + widget;
+        return badge + widget.toString();
     }
 
+    /**
+     * Formatea una fracción cloze (0.0–1.0 o negativa) como porcentaje legible.
+     * Ejemplos: 1.0 → "100%", 0.5 → "50%", 0.0 → "0%", -0.5 → "-50%".
+     * Elimina decimales innecesarios (.0).
+     */
     private static String formatFraction(double f) {
         double pct = f * 100.0;
         if (pct == Math.floor(pct)) {
@@ -894,14 +1037,19 @@ public class MoodleEditorApp extends Application {
         return String.format(Locale.US, "%.1f%%", pct);
     }
 
+    /**
+     * Sustituye cada token cloze del enunciado HTML por su badge de tipo
+     * más el widget HTML correspondiente (input, select, radios o checkboxes).
+     */
     private String renderCloze(String html) {
-        clozeWidgetCounter = 0;
+        clozeWidgetCounter = 0; // reiniciamos para cada pregunta
         Matcher m = CLOZE_TOKEN_PAT.matcher(html);
         StringBuilder sb = new StringBuilder();
         while (m.find()) {
             String typeKey = m.group(2).toUpperCase();
             String points = m.group(1).isEmpty() ? "1" : m.group(1);
             String rawAlts = m.group(3);
+
             List<ClozeAlt> alts = parseClozeAlternatives(rawAlts);
             String widget = buildClozeWidget(typeKey, points, alts);
             m.appendReplacement(sb, Matcher.quoteReplacement(widget));
@@ -947,6 +1095,7 @@ public class MoodleEditorApp extends Application {
         return sb.toString();
     }
 
+    /** Escapa solo los caracteres especiales de un atributo HTML (title, etc.). */
     private static String escapeHtmlAttr(String text) {
         return text
             .replace("&", "&amp;")
