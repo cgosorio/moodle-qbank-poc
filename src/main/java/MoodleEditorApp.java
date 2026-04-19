@@ -387,15 +387,15 @@ public class MoodleEditorApp extends Application {
                         "border:1px solid #dee2e6; border-radius:4px; padding:6px 10px; " +
                         "background:#f8f9fa;'>");
             html.append("<strong>Leyenda de tokens cloze:</strong>&nbsp;");
-            html.append("<span style='background:#d1ecf1;border:1px solid #aaa;border-radius:3px;" +
+            html.append("<span style='background:#1d4ed8;color:#fff;border:1px solid rgba(0,0,0,0.25);border-radius:3px;" +
                         "padding:1px 6px;margin-right:6px;'>Respuesta corta</span>");
-            html.append("<span style='background:#cce5ff;border:1px solid #aaa;border-radius:3px;" +
-                        "padding:1px 6px;margin-right:6px;'>Resp. corta (sensible a mayúsc.)</span>");
-            html.append("<span style='background:#d4edda;border:1px solid #aaa;border-radius:3px;" +
+            html.append("<span style='background:#0e7490;color:#fff;border:1px solid rgba(0,0,0,0.25);border-radius:3px;" +
+                        "padding:1px 6px;margin-right:6px;'>Resp. corta (mayúsc.)</span>");
+            html.append("<span style='background:#15803d;color:#fff;border:1px solid rgba(0,0,0,0.25);border-radius:3px;" +
                         "padding:1px 6px;margin-right:6px;'>Opción múltiple</span>");
-            html.append("<span style='background:#fff3cd;border:1px solid #aaa;border-radius:3px;" +
+            html.append("<span style='background:#b45309;color:#fff;border:1px solid rgba(0,0,0,0.25);border-radius:3px;" +
                         "padding:1px 6px;margin-right:6px;'>Numérica</span>");
-            html.append("<span style='background:#e2d9f3;border:1px solid #aaa;border-radius:3px;" +
+            html.append("<span style='background:#7e22ce;color:#fff;border:1px solid rgba(0,0,0,0.25);border-radius:3px;" +
                         "padding:1px 6px;'>Respuesta múltiple</span>");
             html.append("</div>");
         }
@@ -671,36 +671,50 @@ public class MoodleEditorApp extends Application {
     // Extraído y adaptado de MultiAnswerExtract.java
     // -----------------------------------------------------------------------
 
-    /** Paleta de colores de fondo para los tokens cloze, por tipo de subpregunta. */
-    private static final Map<String, String> CLOZE_COLORS = Map.ofEntries(
-        Map.entry("NUMERICAL",              "#fff3cd"), // amarillo
-        Map.entry("NM",                     "#fff3cd"),
-        Map.entry("SHORTANSWER",            "#d1ecf1"), // azul claro
-        Map.entry("SA",                     "#d1ecf1"),
-        Map.entry("MW",                     "#d1ecf1"),
-        Map.entry("SHORTANSWER_C",          "#cce5ff"), // azul medio
-        Map.entry("SAC",                    "#cce5ff"),
-        Map.entry("MWC",                    "#cce5ff"),
-        Map.entry("MULTICHOICE",            "#d4edda"), // verde
-        Map.entry("MC",                     "#d4edda"),
-        Map.entry("MULTICHOICE_V",          "#d4edda"),
-        Map.entry("MCV",                    "#d4edda"),
-        Map.entry("MULTICHOICE_H",          "#d4edda"),
-        Map.entry("MCH",                    "#d4edda"),
-        Map.entry("MULTICHOICE_S",          "#d4edda"),
-        Map.entry("MCS",                    "#d4edda"),
-        Map.entry("MULTICHOICE_VS",         "#d4edda"),
-        Map.entry("MCVS",                   "#d4edda"),
-        Map.entry("MULTICHOICE_HS",         "#d4edda"),
-        Map.entry("MCHS",                   "#d4edda"),
-        Map.entry("MULTIRESPONSE",          "#e2d9f3"), // violeta
-        Map.entry("MR",                     "#e2d9f3"),
-        Map.entry("MULTIRESPONSE_H",        "#e2d9f3"),
-        Map.entry("MRH",                    "#e2d9f3"),
-        Map.entry("MULTIRESPONSE_S",        "#e2d9f3"),
-        Map.entry("MRS",                    "#e2d9f3"),
-        Map.entry("MULTIRESPONSE_HS",       "#e2d9f3"),
-        Map.entry("MRHS",                   "#e2d9f3")
+    /**
+     * Paleta de alto contraste para tokens cloze.
+     * Cada entrada: { color-de-fondo, color-de-texto }
+     *
+     *   NUMERICAL      → fondo naranja oscuro  / texto blanco
+     *   SHORTANSWER    → fondo azul índigo     / texto blanco
+     *   SHORTANSWER_C  → fondo azul marino     / texto blanco  (sensible mayúsc.)
+     *   MULTICHOICE    → fondo verde bosque    / texto blanco
+     *   MULTIRESPONSE  → fondo púrpura         / texto blanco
+     */
+    private static final Map<String, String[]> CLOZE_COLORS = Map.ofEntries(
+        // --- Numérica ---
+        Map.entry("NUMERICAL",              new String[]{"#b45309", "#ffffff"}),
+        Map.entry("NM",                     new String[]{"#b45309", "#ffffff"}),
+        // --- Respuesta corta (insensible) ---
+        Map.entry("SHORTANSWER",            new String[]{"#1d4ed8", "#ffffff"}),
+        Map.entry("SA",                     new String[]{"#1d4ed8", "#ffffff"}),
+        Map.entry("MW",                     new String[]{"#1d4ed8", "#ffffff"}),
+        // --- Respuesta corta (sensible a mayúsculas) ---
+        Map.entry("SHORTANSWER_C",          new String[]{"#0e7490", "#ffff00"}),
+        Map.entry("SAC",                    new String[]{"#0e7490", "#ffff00"}),
+        Map.entry("MWC",                    new String[]{"#0e7490", "#ffff00"}),
+        // --- Opción múltiple (todas las variantes) ---
+        Map.entry("MULTICHOICE",            new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MC",                     new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MULTICHOICE_V",          new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MCV",                    new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MULTICHOICE_H",          new String[]{"#15803d", "#ffff00"}),
+        Map.entry("MCH",                    new String[]{"#15803d", "#ffff00"}),
+        Map.entry("MULTICHOICE_S",          new String[]{"#15803d", "#00ffff"}),
+        Map.entry("MCS",                    new String[]{"#15803d", "#00ffff"}),
+        Map.entry("MULTICHOICE_VS",         new String[]{"#15803d", "#ff00ff"}),
+        Map.entry("MCVS",                   new String[]{"#15803d", "#ff00ff"}),
+        Map.entry("MULTICHOICE_HS",         new String[]{"#15803d", "#00ffff"}),
+        Map.entry("MCHS",                   new String[]{"#15803d", "#00ffff"}),
+        // --- Respuesta múltiple (todas las variantes) ---
+        Map.entry("MULTIRESPONSE",          new String[]{"#7e22ce", "#ffffff"}),
+        Map.entry("MR",                     new String[]{"#7e22ce", "#ffffff"}),
+        Map.entry("MULTIRESPONSE_H",        new String[]{"#7e22ce", "#ffff00"}),
+        Map.entry("MRH",                    new String[]{"#7e22ce", "#ffff00"}),
+        Map.entry("MULTIRESPONSE_S",        new String[]{"#7e22ce", "#ff00ff"}),
+        Map.entry("MRS",                    new String[]{"#7e22ce", "#ff00ff"}),
+        Map.entry("MULTIRESPONSE_HS",       new String[]{"#7e22ce", "#00ffff"}),
+        Map.entry("MRHS",                   new String[]{"#7e22ce", "#00ffff"})
     );
 
     // Expresión regular que detecta tokens cloze completos en el enunciado.
@@ -731,9 +745,11 @@ public class MoodleEditorApp extends Application {
         Matcher m = CLOZE_TOKEN_PAT.matcher(html);
         StringBuilder sb = new StringBuilder();
         while (m.find()) {
-            String token    = m.group(0);
-            String typeKey  = m.group(2).toUpperCase();
-            String bgColor  = CLOZE_COLORS.getOrDefault(typeKey, "#f8d7da");
+            String token   = m.group(0);
+            String typeKey = m.group(2).toUpperCase();
+            String[] colors = CLOZE_COLORS.getOrDefault(typeKey, new String[]{"#9f1239", "#ffffff"});
+            String bgColor  = colors[0];
+            String fgColor  = colors[1];
 
             // Título del tooltip: muestra puntos y tipo
             String points = m.group(1).isEmpty() ? "1" : m.group(1);
@@ -742,7 +758,8 @@ public class MoodleEditorApp extends Application {
             String span =
                 "<span title='" + title + "' style='" +
                 "background:" + bgColor + ";" +
-                "border:1px solid #aaa;" +
+                "color:" + fgColor + ";" +
+                "border:1px solid rgba(0,0,0,0.25);" +
                 "border-radius:3px;" +
                 "padding:1px 4px;" +
                 "font-family:monospace;" +
