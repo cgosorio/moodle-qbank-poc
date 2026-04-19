@@ -898,6 +898,17 @@ public class MoodleEditorApp extends Application {
     }
 
     /**
+     * Es conveniente barajear las opciones de respuesta
+     */
+    private boolean hasShuffleVariant(String typeKey) {
+        String key = typeKey.toUpperCase();
+        return key.matches(
+            "MULTICHOICE|MC|MULTICHOICE_V|MCV|MULTICHOICE_H|MCH|" +
+            "MULTIRESPONSE|MR|MULTIRESPONSE_H|MRH"
+        );
+    }
+
+    /**
      * Genera la etiqueta de tipo (badge) con su color y el widget HTML
      * que simula el comportamiento de Moodle en un cuestionario.
      *
@@ -912,9 +923,9 @@ public class MoodleEditorApp extends Application {
         String[] colors = CLOZE_TYPE_COLORS.getOrDefault(typeKey, new String[]{"#888", "#fff"});
         String bg = colors[0];
         String fg = colors[1];
-        // Añade un borde rojo si no está configurado el barajeado de las opciones
-        String fontWeight = isShuffledClozeVariant(typeKey) ? "normal" : "bold";
-        String border = isShuffledClozeVariant(typeKey) ? "" : "border: 2px solid red;";
+        // Borde rojo si no está configurado barajeado y existe variante barajeada
+        String fontWeight = hasShuffleVariant(typeKey) ? "bold" : "normal";
+        String border = hasShuffleVariant(typeKey) ? "border: 2px solid red;" : "";
 
         // Badge con tipo y puntuación
         String badge =
@@ -1084,9 +1095,9 @@ public class MoodleEditorApp extends Application {
         while (m.find()) {
             String typeKey = m.group(2).toUpperCase();
             String[] colors = CLOZE_TYPE_COLORS.getOrDefault(typeKey, new String[]{"#9f1239", "#fff"});
-            // Añade un borde rojo si no está configurado el barajeado de las opciones
-            String fontWeight = isShuffledClozeVariant(typeKey) ? "normal" : "bold";
-            String border = isShuffledClozeVariant(typeKey) ? "" : "border: 2px solid red;";
+            // Borde rojo si no está configurado barajeado y existe variante barajeada
+            String fontWeight = hasShuffleVariant(typeKey) ? "bold" : "normal";
+            String border = hasShuffleVariant(typeKey) ? "border: 2px solid red;" : "";
 
             String bgColor = colors[0];
             String fgColor = colors[1];
