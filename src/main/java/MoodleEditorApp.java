@@ -720,7 +720,7 @@ public class MoodleEditorApp extends Application {
      * refleja en toda la interfaz sin tocar más código.
      */
     private static final String WHITE  = "#ffffff";
-    private static final String YELLOW = "#fffaaf";
+    private static final String YELLOW = "#fff66f";  // para las horizontales
     private static final Map<String, String[]> CLOZE_TYPE_COLORS = Map.ofEntries(
         // --- Numérica ---
         Map.entry("NUMERICAL",              new String[]{"#b45309", WHITE}),
@@ -1110,9 +1110,9 @@ public class MoodleEditorApp extends Application {
                 "font-size:0.85em;" +
                 "font-weight:" + fontWeight + ";" +
                 "'>" +
-                "<span style='opacity:0.75'>" + header + "</span>" +
+                "<span style='font-size:larger'>" + header + "</span>" +
                 inner +
-                "<span style='opacity:0.75'>}</span>" +
+                "<span style='font-size:larger'>}</span>" +
                 "</span>";
 
             m.appendReplacement(sb, Matcher.quoteReplacement(span));
