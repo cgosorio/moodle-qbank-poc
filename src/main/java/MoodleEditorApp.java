@@ -78,6 +78,8 @@ public class MoodleEditorApp extends Application {
 
         chkRenderCloze = new CheckBox("renderizar clozes");
         chkRenderCloze.setSelected(false);
+        chkRenderCloze.setVisible(false);
+        chkRenderCloze.setManaged(false);
         chkRenderCloze.selectedProperty().addListener((obs, ov, nv) -> {
             updatePreviewModeLabel();
             if (currentQuestion != null) {
@@ -86,6 +88,8 @@ public class MoodleEditorApp extends Application {
         });
 
         lblPreviewMode = new Label();
+        lblPreviewMode.setVisible(false);
+        lblPreviewMode.setManaged(false);
         updatePreviewModeLabel();
 
         VBox detailBox = new VBox(
@@ -118,7 +122,18 @@ public class MoodleEditorApp extends Application {
     }
 
     private void updatePreviewModeLabel() {
-        String mode = chkRenderCloze != null && chkRenderCloze.isSelected()
+        if (lblPreviewMode == null || chkRenderCloze == null) return;
+
+        boolean visible = chkRenderCloze.isVisible();
+        lblPreviewMode.setVisible(visible);
+        lblPreviewMode.setManaged(visible);
+
+        if (!visible) {
+            lblPreviewMode.setText("");
+            return;
+        }
+
+        String mode = chkRenderCloze.isSelected()
             ? "Modo actual: cloze renderizado"
             : "Modo actual: sintaxis cloze literal resaltada";
         lblPreviewMode.setText(mode);
@@ -406,7 +421,14 @@ public class MoodleEditorApp extends Application {
         // 2. Enunciado (Con soporte para imágenes y resaltado de tokens cloze)
         String body = resolveQuestionBody(q);
 
-        if ("cloze".equals(q.getType())) {
+        boolean isCloze = "cloze".equals(q.getType());
+        chkRenderCloze.setVisible(isCloze);
+        chkRenderCloze.setManaged(isCloze);
+        lblPreviewMode.setVisible(isCloze);
+        lblPreviewMode.setManaged(isCloze);
+        updatePreviewModeLabel();
+
+        if (isCloze) {
             if (chkRenderCloze.isSelected()) {
                 html.append("<div class='mode-note'>Mostrando subpreguntas cloze renderizadas como controles interactivos.</div>");
                 body = renderCloze(body);
@@ -784,17 +806,27 @@ public class MoodleEditorApp extends Application {
           .append("border:1px solid #dee2e6; border-radius:4px; padding:8px 10px; ")
           .append("background:#f8f9fa;'>");
         sb.append("<strong>Leyenda de subpreguntas cloze:</strong>");
+        sb.append("<div style='margin-top:4px; margin-bottom:8px;'>")
+          .append("Texto blanco = versión vertical/normal · ")
+          .append("texto amarillo = versión horizontal · ")
+          .append("negrita = con variante barajada")
+          .append("</div>");
         sb.append("<table style='margin-top:6px; border-collapse:collapse; width:100%;'>");
         for (String[] row : CLOZE_LEGEND_ROWS) {
-            String[] c = CLOZE_TYPE_COLORS.getOrDefault(row[0], new String[]{"#888", "#fff"});
+            String typeKey = row[0];
+            String[] colors = CLOZE_TYPE_COLORS.getOrDefault(row[0], new String[]{"#888", "#fff"});
+            String bg = colors[0];
+            String fg = colors[1];
+            String fontWeight = hasShuffleVariant(typeKey) ? "bold" : "normal";
+            String border = hasShuffleVariant(typeKey) ? "border: 2px solid red;" : "";
+
             sb.append("<tr>")
               .append("<td style='padding:2px 8px;white-space:nowrap;'>")
-              .append("<span style='background:").append(c[0]).append(";color:").append(c[1])
-              .append(";border-radius:3px;padding:1px 5px;font-size:0.9em;'>")
+              .append("<span style='background:").append(bg).append(";color:").append(fg)
+              .append(";border-radius:3px;padding:1px 5px;font-size:0.9em;font-weight:").append(fontWeight).append(";'>")
               .append(row[0]).append("</span></td>")
               .append("<td style='padding:2px 8px;'>").append(row[1]).append("</td>")
-              .append("<td style='padding:2px 8px;color:#999;font-style:italic;'>").append(row[2]).append("</td>")
-              .append("</tr>");
+              .append("<td style='padding:2px 8px;color:#999;font-style:italic;'>").append(row[2]).append("</td></tr>");
         }
         sb.append("</table></div>");
         return sb.toString();
