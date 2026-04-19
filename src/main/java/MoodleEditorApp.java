@@ -375,13 +375,13 @@ public class MoodleEditorApp extends Application {
             String mime = f.name.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
             body = body.replace("@@PLUGINFILE@@/" + f.name, "data:" + mime + ";base64," + f.content);
         }
-        // Si es una pregunta de tipo cloze, resaltamos los tokens de sintaxis
+        // Si es una pregunta de tipo cloze, renderizamos los tokens como widgets
         if ("cloze".equals(q.getType())) {
-            body = highlightCloze(body);
+            body = renderCloze(body);
         }
         html.append("<div style='margin-bottom: 20px;'>").append(body).append("</div>");
 
-        // Si es cloze, mostramos una leyenda de colores generada desde CLOZE_COLORS
+        // Si es cloze, mostramos una leyenda de colores generada desde CLOZE_TYPE_COLORS
         if ("cloze".equals(q.getType())) {
             html.append(buildClozeColors());
         }
@@ -653,113 +653,86 @@ public class MoodleEditorApp extends Application {
     private void updateTable(String p) { tableView.setItems(categoryData.getOrDefault(p, FXCollections.observableArrayList())); }
 
     // -----------------------------------------------------------------------
-    // Soporte para sintaxis Cloze (multianswer)
+    // Soporte para sintaxis Cloze (type="cloze")
     // Extraído y adaptado de MultiAnswerExtract.java
     // -----------------------------------------------------------------------
 
     /**
-     * Paleta de alto contraste para tokens cloze.
+     * Color de fondo de la etiqueta de tipo para cada familia cloze.
+     * Solo se usa en la etiqueta de identificación visible antes del widget,
+     * no en el widget en sí (que se renderiza como HTML neutro).
      * Cada entrada: { color-de-fondo, color-de-texto }
-     *
-     *   NUMERICAL      → fondo naranja oscuro  / texto blanco
-     *   SHORTANSWER    → fondo azul índigo     / texto blanco
-     *   SHORTANSWER_C  → fondo cian oscuro     / texto blanco  (sensible a mayúsc.)
-     *   MULTICHOICE    → fondo verde bosque    / texto blanco
-     *   MULTIRESPONSE  → fondo púrpura         / texto blanco
-     *
-     * La leyenda del panel se genera automáticamente a partir de este mapa
-     * mediante {@link #buildClozeColors()}, de modo que un cambio aquí se
-     * refleja en toda la interfaz sin tocar más código.
      */
-    private static final Map<String, String[]> CLOZE_COLORS = Map.ofEntries(
-        // --- Numérica ---
+    private static final Map<String, String[]> CLOZE_TYPE_COLORS = Map.ofEntries(
         Map.entry("NUMERICAL",              new String[]{"#b45309", "#ffffff"}),
         Map.entry("NM",                     new String[]{"#b45309", "#ffffff"}),
-        // --- Respuesta corta (insensible a mayúsculas) ---
         Map.entry("SHORTANSWER",            new String[]{"#1d4ed8", "#ffffff"}),
         Map.entry("SA",                     new String[]{"#1d4ed8", "#ffffff"}),
         Map.entry("MW",                     new String[]{"#1d4ed8", "#ffffff"}),
-        // --- Respuesta corta (sensible a mayúsculas) ---
-        Map.entry("SHORTANSWER_C",          new String[]{"#0e7490", "#fffaaf"}),
-        Map.entry("SAC",                    new String[]{"#0e7490", "#fffaaf"}),
-        Map.entry("MWC",                    new String[]{"#0e7490", "#fffaaf"}),
-        // --- Opción múltiple (todas las variantes) ---
+        Map.entry("SHORTANSWER_C",          new String[]{"#0e7490", "#ffffff"}),
+        Map.entry("SAC",                    new String[]{"#0e7490", "#ffffff"}),
+        Map.entry("MWC",                    new String[]{"#0e7490", "#ffffff"}),
         Map.entry("MULTICHOICE",            new String[]{"#15803d", "#ffffff"}),
         Map.entry("MC",                     new String[]{"#15803d", "#ffffff"}),
         Map.entry("MULTICHOICE_V",          new String[]{"#15803d", "#ffffff"}),
         Map.entry("MCV",                    new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MULTICHOICE_H",          new String[]{"#15803d", "#fffaaf"}),
-        Map.entry("MCH",                    new String[]{"#15803d", "#fffaaf"}),
-        Map.entry("MULTICHOICE_S",          new String[]{"#15803d", "#ffaaff"}),
-        Map.entry("MCS",                    new String[]{"#15803d", "#ffaaff"}),
-        Map.entry("MULTICHOICE_VS",         new String[]{"#15803d", "#aaffff"}),
-        Map.entry("MCVS",                   new String[]{"#15803d", "#aaffff"}),
-        Map.entry("MULTICHOICE_HS",         new String[]{"#15803d", "#dddddd"}),
-        Map.entry("MCHS",                   new String[]{"#15803d", "#dddddd"}),
-        // --- Respuesta múltiple (todas las variantes) ---
+        Map.entry("MULTICHOICE_H",          new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MCH",                    new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MULTICHOICE_S",          new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MCS",                    new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MULTICHOICE_VS",         new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MCVS",                   new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MULTICHOICE_HS",         new String[]{"#15803d", "#ffffff"}),
+        Map.entry("MCHS",                   new String[]{"#15803d", "#ffffff"}),
         Map.entry("MULTIRESPONSE",          new String[]{"#7e22ce", "#ffffff"}),
         Map.entry("MR",                     new String[]{"#7e22ce", "#ffffff"}),
-        Map.entry("MULTIRESPONSE_H",        new String[]{"#7e22ce", "#fffaaf"}),
-        Map.entry("MRH",                    new String[]{"#7e22ce", "#fffaaf"}),
-        Map.entry("MULTIRESPONSE_S",        new String[]{"#7e22ce", "#ffaaff"}),
-        Map.entry("MRS",                    new String[]{"#7e22ce", "#ffaaff"}),
-        Map.entry("MULTIRESPONSE_HS",       new String[]{"#7e22ce", "#aaffff"}),
-        Map.entry("MRHS",                   new String[]{"#7e22ce", "#aaffff"})
+        Map.entry("MULTIRESPONSE_H",        new String[]{"#7e22ce", "#ffffff"}),
+        Map.entry("MRH",                    new String[]{"#7e22ce", "#ffffff"}),
+        Map.entry("MULTIRESPONSE_S",        new String[]{"#7e22ce", "#ffffff"}),
+        Map.entry("MRS",                    new String[]{"#7e22ce", "#ffffff"}),
+        Map.entry("MULTIRESPONSE_HS",       new String[]{"#7e22ce", "#ffffff"}),
+        Map.entry("MRHS",                   new String[]{"#7e22ce", "#ffffff"})
     );
 
     /**
-     * Define el orden y la etiqueta descriptiva de cada familia de tipos cloze
-     * tal como aparecerán en la leyenda del panel de vista previa.
-     * Cada fila: { clave canónica en CLOZE_COLORS, etiqueta visible, aliases }.
+     * Filas de la leyenda: { clave canónica, descripción, aliases }.
+     * El orden aquí es el orden de aparición en la leyenda.
      */
     private static final String[][] CLOZE_LEGEND_ROWS = {
-        { "SHORTANSWER",   "Respuesta corta",                "SA, MW"          },
-        { "SHORTANSWER_C", "Resp. corta (sens. mayúsc.)",    "SAC, MWC"        },
-        { "MULTICHOICE",   "Opción múltiple",                "MC, MCV, MCH, MCS, MCVS, MCHS" },
-        { "MULTIRESPONSE", "Respuesta múltiple",             "MR, MRH, MRS, MRHS" },
-        { "NUMERICAL",     "Numérica",                       "NM"              },
+        { "SHORTANSWER",   "Respuesta corta (sin distinción mayúsc.)",  "SA, MW"                        },
+        { "SHORTANSWER_C", "Respuesta corta (con distinción mayúsc.)",  "SAC, MWC"                      },
+        { "NUMERICAL",     "Numérica",                                  "NM"                            },
+        { "MULTICHOICE",   "Opción múltiple – desplegable",             "MC, MCS"                       },
+        { "MULTICHOICE_V", "Opción múltiple – vertical (radio)",        "MCV, MCVS"                     },
+        { "MULTICHOICE_H", "Opción múltiple – horizontal (radio)",      "MCH, MCHS"                     },
+        { "MULTIRESPONSE", "Respuesta múltiple – vertical (checkbox)",  "MR, MRS"                       },
+        { "MULTIRESPONSE_H","Respuesta múltiple – horizontal (checkbox)","MRH, MRHS"                    },
     };
 
-    /**
-     * Genera el HTML del bloque de leyenda leyendo los colores directamente
-     * de {@link #CLOZE_COLORS}, de forma que cualquier cambio en la paleta
-     * se refleja automáticamente aquí.
-     */
+    /** Genera el HTML de la leyenda leyendo colores de {@link #CLOZE_TYPE_COLORS}. */
     private String buildClozeColors() {
         StringBuilder sb = new StringBuilder();
-        sb.append("<div style='font-size:0.8em; color:#555; margin-bottom:15px; ")
-          .append("border:1px solid #dee2e6; border-radius:4px; padding:8px 10px; ")
-          .append("background:#f8f9fa;'>");
-        sb.append("<strong>Leyenda de tokens cloze:</strong>");
-        sb.append("<table style='margin-top:6px; border-collapse:collapse; width:100%;'>");
-
+        sb.append("<div style='font-size:0.8em;color:#555;margin-bottom:15px;")
+          .append("border:1px solid #dee2e6;border-radius:4px;padding:8px 10px;background:#f8f9fa;'>");
+        sb.append("<strong>Leyenda de subpreguntas cloze:</strong>");
+        sb.append("<table style='margin-top:6px;border-collapse:collapse;width:100%;'>");
         for (String[] row : CLOZE_LEGEND_ROWS) {
-            String key    = row[0];
-            String label  = row[1];
-            String alises = row[2];
-            String[] colors = CLOZE_COLORS.getOrDefault(key, new String[]{"#888", "#fff"});
-            String bg = colors[0];
-            String fg = colors[1];
-
+            String[] c = CLOZE_TYPE_COLORS.getOrDefault(row[0], new String[]{"#888","#fff"});
             sb.append("<tr>")
-              .append("<td style='padding:2px 6px;'>")
-              .append("<span style='background:").append(bg)
-              .append(";color:").append(fg)
-              .append(";border:1px solid rgba(0,0,0,0.25);border-radius:3px;padding:1px 6px;'>")
-              .append(label).append("</span>")
-              .append("</td>")
-              .append("<td style='padding:2px 6px; color:#777;'>")
-              .append(key).append(", ").append(alises)
-              .append("</td>")
+              .append("<td style='padding:2px 8px;white-space:nowrap;'>")
+              .append("<span style='background:").append(c[0]).append(";color:").append(c[1])
+              .append(";border-radius:3px;padding:1px 5px;font-size:0.9em;'>")
+              .append(row[0]).append("</span></td>")
+              .append("<td style='padding:2px 8px;'>").append(row[1]).append("</td>")
+              .append("<td style='padding:2px 8px;color:#999;font-style:italic;'>").append(row[2]).append("</td>")
               .append("</tr>");
         }
-
         sb.append("</table></div>");
         return sb.toString();
     }
 
-    // Expresión regular que detecta tokens cloze completos en el enunciado.
-    // Replica ANSWER_REGEX de MultiAnswerExtract, compilada una sola vez.
+    // Patrón principal: captura el token cloze completo.
+    // grupo 1 = puntuación  |  grupo 2 = tipo  |  grupo 3 = alternativas en bruto
     private static final Pattern CLOZE_TOKEN_PAT = Pattern.compile(
         "\\{([0-9]*):" +
         "(NUMERICAL|NM" +
@@ -769,66 +742,212 @@ public class MoodleEditorApp extends Application {
         "|SHORTANSWER_C|SAC|MWC|SHORTANSWER|SA|MW" +
         "|MULTIRESPONSE_HS|MRHS|MULTIRESPONSE_H|MRH" +
         "|MULTIRESPONSE_S|MRS|MULTIRESPONSE|MR)" +
-        ":.*?(?<!\\\\)\\}",
+        ":(.+?)(?<!\\\\)\\}",
+        Pattern.DOTALL
+    );
+
+    // Patrón de una alternativa individual: fracción opcional + texto + feedback opcional.
+    // El separador entre alternativas es '~' (sin escapar).
+    private static final Pattern CLOZE_ALT_PAT = Pattern.compile(
+        "(?:=|%(-?[0-9]+(?:[.,][0-9]*)?)%)?" +   // fracción: '=' ó '%n%'
+        "(.+?)(?<!\\\\)" +                         // texto de la alternativa
+        "(?:#(.*?)(?<!\\\\))?" +                   // feedback opcional tras '#'
+        "(?=~|$)",                                 // hasta '~' o fin de cadena
         Pattern.DOTALL
     );
 
     /**
-     * Recorre el texto HTML de un enunciado cloze y envuelve cada token
-     * {@code {puntos:TIPO:alternativas}} en un {@code <span>} coloreado
-     * según el tipo de subpregunta.
-     *
-     * <p>El token completo (incluyendo las alternativas, que pueden contener
-     * HTML como {@code <img src="data:...">}) se renderiza dentro del span
-     * sin escapar, para que el WebView muestre correctamente imágenes
-     * embebidas. Solo la cabecera visible del tooltip se escapa.</p>
-     *
-     * @param html texto HTML del enunciado (tal como sale del XML de Moodle)
-     * @return texto HTML con los tokens cloze resaltados
+     * Representa una alternativa parseada de un token cloze.
      */
-    private String highlightCloze(String html) {
+    private static class ClozeAlt {
+        final double fraction; // 1.0 = correcta, 0.0 = incorrecta, negativo = penalización
+        final String text;     // texto HTML de la opción (puede contener <img>)
+        final String feedback; // puede estar vacío
+
+        ClozeAlt(double fraction, String text, String feedback) {
+            this.fraction = fraction;
+            this.text     = text;
+            this.feedback = feedback != null ? feedback : "";
+        }
+    }
+
+    /**
+     * Parsea la cadena de alternativas de un token cloze en una lista de {@link ClozeAlt}.
+     * Las alternativas se separan por '~' sin escapar.
+     */
+    private static List<ClozeAlt> parseClozeAlternatives(String raw) {
+        List<ClozeAlt> result = new ArrayList<>();
+        // Dividimos por '~' que no estén escapados con '\'
+        String[] parts = raw.split("(?<!\\\\)~");
+        for (String part : parts) {
+            part = part.trim();
+            if (part.isEmpty()) continue;
+
+            double fraction = 0.0;
+            String text;
+            String feedback = "";
+
+            // Detectar prefijo de fracción
+            if (part.startsWith("=")) {
+                fraction = 1.0;
+                part = part.substring(1);
+            } else {
+                java.util.regex.Matcher pm = Pattern.compile("^%(-?[0-9]+(?:[.,][0-9]*)?)%").matcher(part);
+                if (pm.find()) {
+                    fraction = Double.parseDouble(pm.group(1).replace(',', '.')) / 100.0;
+                    part = part.substring(pm.end());
+                }
+            }
+
+            // Separar feedback (tras '#' no escapado)
+            int hashIdx = -1;
+            for (int i = 0; i < part.length(); i++) {
+                if (part.charAt(i) == '#' && (i == 0 || part.charAt(i-1) != '\\')) {
+                    hashIdx = i; break;
+                }
+            }
+            if (hashIdx >= 0) {
+                feedback = part.substring(hashIdx + 1).replace("\\#", "#");
+                text     = part.substring(0, hashIdx);
+            } else {
+                text = part;
+            }
+            // Unescape
+            text = text.replace("\\}", "}").replace("\\~", "~").replace("\\=", "=");
+
+            result.add(new ClozeAlt(fraction, text, feedback));
+        }
+        return result;
+    }
+
+    /**
+     * Genera un contador HTML de subpregunta único para el uso como id/name de input.
+     */
+    private int clozeWidgetCounter = 0;
+
+    /**
+     * Genera la etiqueta de tipo (badge) con su color y el widget HTML
+     * que simula el comportamiento de Moodle en un cuestionario.
+     *
+     * @param typeKey tipo en mayúsculas tal como aparece en el XML (ej. "MULTICHOICE_V")
+     * @param points  puntuación del token
+     * @param alts    alternativas ya parseadas
+     * @return HTML del badge + widget, para insertar inline en el enunciado
+     */
+    private String buildClozeWidget(String typeKey, String points, List<ClozeAlt> alts) {
+        clozeWidgetCounter++;
+        String id = "cq" + clozeWidgetCounter;
+        String[] colors = CLOZE_TYPE_COLORS.getOrDefault(typeKey, new String[]{"#888","#fff"});
+        String bg = colors[0], fg = colors[1];
+
+        // Badge con tipo y puntuación
+        String badge =
+            "<span title='" + points + " pt' style='" +
+            "background:" + bg + ";color:" + fg + ";" +
+            "border-radius:3px;padding:0 4px;font-size:0.75em;" +
+            "vertical-align:middle;margin-right:2px;font-family:monospace;" +
+            "'>" + escapeHtmlAttr(typeKey) + "</span>";
+
+        StringBuilder widget = new StringBuilder();
+
+        // ── SHORTANSWER / SHORTANSWER_C / NUMERICAL ─────────────────────────
+        if (typeKey.matches("SHORTANSWER|SA|MW|SHORTANSWER_C|SAC|MWC|NUMERICAL|NM")) {
+            // Calculamos el ancho aproximado en caracteres de la respuesta más larga
+            int maxLen = alts.stream()
+                             .mapToInt(a -> a.text.replaceAll("<[^>]+>","").length())
+                             .max().orElse(10);
+            int size = Math.max(10, Math.min(maxLen + 4, 40));
+            widget.append("<input type='text' id='").append(id)
+                  .append("' size='").append(size)
+                  .append("' style='border:1px solid #999;border-radius:3px;padding:1px 3px;' />");
+        }
+
+        // ── MULTICHOICE / MC / MCS  → desplegable <select> ──────────────────
+        else if (typeKey.matches("MULTICHOICE|MC|MULTICHOICE_S|MCS")) {
+            widget.append("<select id='").append(id)
+                  .append("' style='border:1px solid #999;border-radius:3px;padding:1px;'>")
+                  .append("<option value=''>Selecciona...</option>");
+            for (int i = 0; i < alts.size(); i++) {
+                widget.append("<option value='").append(i).append("'>")
+                      .append(alts.get(i).text)
+                      .append("</option>");
+            }
+            widget.append("</select>");
+        }
+
+        // ── MULTICHOICE_V / MCV / MCVS → radio vertical ──────────────────────
+        else if (typeKey.matches("MULTICHOICE_V|MCV|MULTICHOICE_VS|MCVS")) {
+            widget.append("<span style='display:inline-block;vertical-align:top;'>");
+            for (int i = 0; i < alts.size(); i++) {
+                widget.append("<label style='display:block;'>")
+                      .append("<input type='radio' name='").append(id).append("' value='").append(i).append("'> ")
+                      .append(alts.get(i).text)
+                      .append("</label>");
+            }
+            widget.append("</span>");
+        }
+
+        // ── MULTICHOICE_H / MCH / MCHS → radio horizontal ────────────────────
+        else if (typeKey.matches("MULTICHOICE_H|MCH|MULTICHOICE_HS|MCHS")) {
+            widget.append("<span style='display:inline-block;vertical-align:top;'>");
+            for (int i = 0; i < alts.size(); i++) {
+                widget.append("<label style='margin-right:10px;'>")
+                      .append("<input type='radio' name='").append(id).append("' value='").append(i).append("'> ")
+                      .append(alts.get(i).text)
+                      .append("</label>");
+            }
+            widget.append("</span>");
+        }
+
+        // ── MULTIRESPONSE / MR / MRS → checkbox vertical ─────────────────────
+        else if (typeKey.matches("MULTIRESPONSE|MR|MULTIRESPONSE_S|MRS")) {
+            widget.append("<span style='display:inline-block;vertical-align:top;'>");
+            for (int i = 0; i < alts.size(); i++) {
+                widget.append("<label style='display:block;'>")
+                      .append("<input type='checkbox' name='").append(id).append("' value='").append(i).append("'> ")
+                      .append(alts.get(i).text)
+                      .append("</label>");
+            }
+            widget.append("</span>");
+        }
+
+        // ── MULTIRESPONSE_H / MRH / MRHS → checkbox horizontal ───────────────
+        else if (typeKey.matches("MULTIRESPONSE_H|MRH|MULTIRESPONSE_HS|MRHS")) {
+            widget.append("<span style='display:inline-block;vertical-align:top;'>");
+            for (int i = 0; i < alts.size(); i++) {
+                widget.append("<label style='margin-right:10px;'>")
+                      .append("<input type='checkbox' name='").append(id).append("' value='").append(i).append("'> ")
+                      .append(alts.get(i).text)
+                      .append("</label>");
+            }
+            widget.append("</span>");
+        }
+
+        return badge + widget.toString();
+    }
+
+    /**
+     * Sustituye cada token cloze del enunciado HTML por su badge de tipo
+     * más el widget HTML correspondiente (input, select, radios o checkboxes).
+     */
+    private String renderCloze(String html) {
+        clozeWidgetCounter = 0; // reiniciamos para cada pregunta
         Matcher m = CLOZE_TOKEN_PAT.matcher(html);
         StringBuilder sb = new StringBuilder();
         while (m.find()) {
-            String typeKey  = m.group(2).toUpperCase();
-            String[] colors = CLOZE_COLORS.getOrDefault(typeKey, new String[]{"#9f1239", "#ffffff"});
-            String bgColor  = colors[0];
-            String fgColor  = colors[1];
+            String typeKey = m.group(2).toUpperCase();
+            String points  = m.group(1).isEmpty() ? "1" : m.group(1);
+            String rawAlts = m.group(3);
 
-            // Cabecera visible del token: "{puntos:TIPO:" (escapada para el atributo title)
-            String points   = m.group(1).isEmpty() ? "1" : m.group(1);
-            String title    = points + " pt · " + m.group(2);
-
-            // Etiqueta compacta que se muestra antes del contenido: "{n:TIPO: ···}"
-            // Solo esta parte se escapa; el resto del token se deja como HTML.
-            String header   = escapeHtmlAttr("{" + points + ":" + m.group(2) + ":");
-            String inner    = m.group(0)  // contenido completo del token sin escapar
-                                .replaceFirst("\\{[0-9]*:[^:]+:", "")   // quita cabecera
-                                .replaceAll("\\}$", "");                 // quita llave final
-
-            String span =
-                "<span title='" + title + "' style='" +
-                "background:" + bgColor + ";" +
-                "color:" + fgColor + ";" +
-                "border:1px solid rgba(0,0,0,0.25);" +
-                "border-radius:3px;" +
-                "padding:1px 4px;" +
-                "font-family:monospace;" +
-                "font-size:0.85em;" +
-                "'>" +
-                // Cabecera fija (texto plano escapado) + contenido HTML sin escapar + cierre
-                "<span style='opacity:0.75'>" + header + "</span>" +
-                inner +
-                "<span style='opacity:0.75'>}</span>" +
-                "</span>";
-
-            m.appendReplacement(sb, Matcher.quoteReplacement(span));
+            List<ClozeAlt> alts = parseClozeAlternatives(rawAlts);
+            String widget = buildClozeWidget(typeKey, points, alts);
+            m.appendReplacement(sb, Matcher.quoteReplacement(widget));
         }
         m.appendTail(sb);
         return sb.toString();
     }
 
-    /** Escapa solo los caracteres especiales de un atributo HTML (title, etc.). */
+    /** Escapa caracteres especiales para uso en atributos HTML (title, value, etc.). */
     private static String escapeHtmlAttr(String text) {
         return text
             .replace("&",  "&amp;")
