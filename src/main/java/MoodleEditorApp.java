@@ -30,6 +30,8 @@ import javax.xml.transform.stream.StreamResult;
 
 import java.io.File;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MoodleEditorApp extends Application {
 
@@ -367,13 +369,36 @@ public class MoodleEditorApp extends Application {
         html.append("<strong>Tipo:</strong> <span style='color: #0d6efd;'>").append(q.getType()).append("</span>");
         html.append("</div>");
 
-        // 2. Enunciado (Con soporte para imágenes)
+        // 2. Enunciado (Con soporte para imágenes y resaltado de tokens cloze)
         String body = q.getQuestionText();
         for (MoodleFile f : q.getFiles()) {
             String mime = f.name.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
             body = body.replace("@@PLUGINFILE@@/" + f.name, "data:" + mime + ";base64," + f.content);
         }
+        // Si es una pregunta de tipo cloze, resaltamos los tokens de sintaxis
+        if ("cloze".equals(q.getType())) {
+            body = highlightCloze(body);
+        }
         html.append("<div style='margin-bottom: 20px;'>").append(body).append("</div>");
+
+        // Si es cloze, mostramos una leyenda de colores
+        if ("cloze".equals(q.getType())) {
+            html.append("<div style='font-size:0.8em; color:#555; margin-bottom:15px; " +
+                        "border:1px solid #dee2e6; border-radius:4px; padding:6px 10px; " +
+                        "background:#f8f9fa;'>");
+            html.append("<strong>Leyenda de tokens cloze:</strong>&nbsp;");
+            html.append("<span style='background:#d1ecf1;border:1px solid #aaa;border-radius:3px;" +
+                        "padding:1px 6px;margin-right:6px;'>Respuesta corta</span>");
+            html.append("<span style='background:#cce5ff;border:1px solid #aaa;border-radius:3px;" +
+                        "padding:1px 6px;margin-right:6px;'>Resp. corta (sensible a mayúsc.)</span>");
+            html.append("<span style='background:#d4edda;border:1px solid #aaa;border-radius:3px;" +
+                        "padding:1px 6px;margin-right:6px;'>Opción múltiple</span>");
+            html.append("<span style='background:#fff3cd;border:1px solid #aaa;border-radius:3px;" +
+                        "padding:1px 6px;margin-right:6px;'>Numérica</span>");
+            html.append("<span style='background:#e2d9f3;border:1px solid #aaa;border-radius:3px;" +
+                        "padding:1px 6px;'>Respuesta múltiple</span>");
+            html.append("</div>");
+        }
 
         // 3. Lógica de Respuestas según el tipo
         if ("matching".equals(q.getType())) {
@@ -640,6 +665,105 @@ public class MoodleEditorApp extends Application {
     }
 
     private void updateTable(String p) { tableView.setItems(categoryData.getOrDefault(p, FXCollections.observableArrayList())); }
+
+    // -----------------------------------------------------------------------
+    // Soporte para sintaxis Cloze (multianswer)
+    // Extraído y adaptado de MultiAnswerExtract.java
+    // -----------------------------------------------------------------------
+
+    /** Paleta de colores de fondo para los tokens cloze, por tipo de subpregunta. */
+    private static final Map<String, String> CLOZE_COLORS = Map.ofEntries(
+        Map.entry("NUMERICAL",              "#fff3cd"), // amarillo
+        Map.entry("NM",                     "#fff3cd"),
+        Map.entry("SHORTANSWER",            "#d1ecf1"), // azul claro
+        Map.entry("SA",                     "#d1ecf1"),
+        Map.entry("MW",                     "#d1ecf1"),
+        Map.entry("SHORTANSWER_C",          "#cce5ff"), // azul medio
+        Map.entry("SAC",                    "#cce5ff"),
+        Map.entry("MWC",                    "#cce5ff"),
+        Map.entry("MULTICHOICE",            "#d4edda"), // verde
+        Map.entry("MC",                     "#d4edda"),
+        Map.entry("MULTICHOICE_V",          "#d4edda"),
+        Map.entry("MCV",                    "#d4edda"),
+        Map.entry("MULTICHOICE_H",          "#d4edda"),
+        Map.entry("MCH",                    "#d4edda"),
+        Map.entry("MULTICHOICE_S",          "#d4edda"),
+        Map.entry("MCS",                    "#d4edda"),
+        Map.entry("MULTICHOICE_VS",         "#d4edda"),
+        Map.entry("MCVS",                   "#d4edda"),
+        Map.entry("MULTICHOICE_HS",         "#d4edda"),
+        Map.entry("MCHS",                   "#d4edda"),
+        Map.entry("MULTIRESPONSE",          "#e2d9f3"), // violeta
+        Map.entry("MR",                     "#e2d9f3"),
+        Map.entry("MULTIRESPONSE_H",        "#e2d9f3"),
+        Map.entry("MRH",                    "#e2d9f3"),
+        Map.entry("MULTIRESPONSE_S",        "#e2d9f3"),
+        Map.entry("MRS",                    "#e2d9f3"),
+        Map.entry("MULTIRESPONSE_HS",       "#e2d9f3"),
+        Map.entry("MRHS",                   "#e2d9f3")
+    );
+
+    // Expresión regular que detecta tokens cloze completos en el enunciado.
+    // Replica ANSWER_REGEX de MultiAnswerExtract, compilada una sola vez.
+    private static final Pattern CLOZE_TOKEN_PAT = Pattern.compile(
+        "\\{([0-9]*):" +
+        "(NUMERICAL|NM" +
+        "|MULTICHOICE_VS|MCVS|MULTICHOICE_HS|MCHS" +
+        "|MULTICHOICE_V|MCV|MULTICHOICE_H|MCH" +
+        "|MULTICHOICE_S|MCS|MULTICHOICE|MC" +
+        "|SHORTANSWER_C|SAC|MWC|SHORTANSWER|SA|MW" +
+        "|MULTIRESPONSE_HS|MRHS|MULTIRESPONSE_H|MRH" +
+        "|MULTIRESPONSE_S|MRS|MULTIRESPONSE|MR)" +
+        ":.*?(?<!\\\\)\\}",
+        Pattern.DOTALL
+    );
+
+    /**
+     * Recorre el texto HTML de un enunciado cloze y envuelve cada token
+     * {@code {puntos:TIPO:alternativas}} en un {@code <span>} con fondo de
+     * color según el tipo de subpregunta, para facilitar la lectura en el
+     * panel de vista previa.
+     *
+     * @param html texto HTML del enunciado (tal como sale del XML de Moodle)
+     * @return texto HTML con los tokens cloze resaltados
+     */
+    private String highlightCloze(String html) {
+        Matcher m = CLOZE_TOKEN_PAT.matcher(html);
+        StringBuilder sb = new StringBuilder();
+        while (m.find()) {
+            String token    = m.group(0);
+            String typeKey  = m.group(2).toUpperCase();
+            String bgColor  = CLOZE_COLORS.getOrDefault(typeKey, "#f8d7da");
+
+            // Título del tooltip: muestra puntos y tipo
+            String points = m.group(1).isEmpty() ? "1" : m.group(1);
+            String title  = points + " pt · " + m.group(2);
+
+            String span =
+                "<span title='" + title + "' style='" +
+                "background:" + bgColor + ";" +
+                "border:1px solid #aaa;" +
+                "border-radius:3px;" +
+                "padding:1px 4px;" +
+                "font-family:monospace;" +
+                "font-size:0.85em;" +
+                "white-space:nowrap;" +
+                "'>" + escapeHtmlForSpan(token) + "</span>";
+
+            m.appendReplacement(sb, Matcher.quoteReplacement(span));
+        }
+        m.appendTail(sb);
+        return sb.toString();
+    }
+
+    /** Escapa los caracteres HTML dentro del texto literal del token cloze. */
+    private static String escapeHtmlForSpan(String text) {
+        return text
+            .replace("&",  "&amp;")
+            .replace("<",  "&lt;")
+            .replace(">",  "&gt;")
+            .replace("\"", "&quot;");
+    }
 
     public static void main(String[] args) { launch(args); }
 }
