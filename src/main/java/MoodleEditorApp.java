@@ -851,25 +851,47 @@ public class MoodleEditorApp extends Application {
         StringBuilder widget = new StringBuilder();
 
         // ── SHORTANSWER / SHORTANSWER_C / NUMERICAL ─────────────────────────
+        // La respuesta correcta (fracción == 1.0, o la de mayor fracción) se
+        // muestra como placeholder del campo de texto.
         if (typeKey.matches("SHORTANSWER|SA|MW|SHORTANSWER_C|SAC|MWC|NUMERICAL|NM")) {
-            // Calculamos el ancho aproximado en caracteres de la respuesta más larga
-            int maxLen = alts.stream()
-                             .mapToInt(a -> a.text.replaceAll("<[^>]+>","").length())
-                             .max().orElse(10);
-            int size = Math.max(10, Math.min(maxLen + 4, 40));
+            // Respuesta correcta: primera con fracción == 1.0, si no la de mayor fracción
+            String correct = alts.stream()
+                .filter(a -> a.fraction == 1.0)
+                .map(a -> a.text.replaceAll("<[^>]+>", ""))
+                .findFirst()
+                .orElseGet(() -> alts.stream()
+                    .max(java.util.Comparator.comparingDouble(a -> a.fraction))
+                    .map(a -> a.text.replaceAll("<[^>]+>", ""))
+                    .orElse(""));
+            int size = Math.max(10, Math.min(correct.length() + 6, 40));
             widget.append("<input type='text' id='").append(id)
                   .append("' size='").append(size)
-                  .append("' style='border:1px solid #999;border-radius:3px;padding:1px 3px;' />");
+                  .append("' placeholder='").append(escapeHtmlAttr(correct)).append("'")
+                  .append(" style='border:1px solid #999;border-radius:3px;padding:1px 3px;")
+                  .append("font-style:italic;color:#666;' />");
         }
 
         // ── MULTICHOICE / MC / MCS  → desplegable <select> ──────────────────
+        // La opción correcta se muestra seleccionada, en verde y negrita.
+        // Nota: el atributo 'style' en <option> tiene soporte limitado en algunos
+        // navegadores, pero JavaFX WebView (basado en WebKit) sí lo respeta.
         else if (typeKey.matches("MULTICHOICE|MC|MULTICHOICE_S|MCS")) {
             widget.append("<select id='").append(id)
                   .append("' style='border:1px solid #999;border-radius:3px;padding:1px;'>")
                   .append("<option value=''>Selecciona...</option>");
             for (int i = 0; i < alts.size(); i++) {
-                widget.append("<option value='").append(i).append("'>")
-                      .append(alts.get(i).text)
+                ClozeAlt a = alts.get(i);
+                boolean correct = a.fraction == 1.0;
+                // Fracción formateada para el tooltip de la opción
+                String pct = formatFraction(a.fraction);
+                widget.append("<option value='").append(i).append("'")
+                      .append(correct ? " selected" : "")
+                      .append(" title='").append(pct).append("'")
+                      .append(" style='")
+                      .append(correct ? "color:#15803d;font-weight:bold;" : "color:#333;")
+                      .append("'>")
+                      .append(correct ? "✓ " : "")
+                      .append(a.text)
                       .append("</option>");
             }
             widget.append("</select>");
@@ -879,9 +901,14 @@ public class MoodleEditorApp extends Application {
         else if (typeKey.matches("MULTICHOICE_V|MCV|MULTICHOICE_VS|MCVS")) {
             widget.append("<span style='display:inline-block;vertical-align:top;'>");
             for (int i = 0; i < alts.size(); i++) {
+                ClozeAlt a = alts.get(i);
+                boolean correct = a.fraction == 1.0;
+                String pct = formatFraction(a.fraction);
                 widget.append("<label style='display:block;'>")
-                      .append("<input type='radio' name='").append(id).append("' value='").append(i).append("'> ")
-                      .append(alts.get(i).text)
+                      .append("<input type='radio' name='").append(id).append("' value='").append(i).append("'")
+                      .append(correct ? " checked" : "").append("> ")
+                      .append("<small style='color:#c00;margin-right:3px;'>(").append(pct).append(")</small>")
+                      .append(a.text)
                       .append("</label>");
             }
             widget.append("</span>");
@@ -891,9 +918,14 @@ public class MoodleEditorApp extends Application {
         else if (typeKey.matches("MULTICHOICE_H|MCH|MULTICHOICE_HS|MCHS")) {
             widget.append("<span style='display:inline-block;vertical-align:top;'>");
             for (int i = 0; i < alts.size(); i++) {
+                ClozeAlt a = alts.get(i);
+                boolean correct = a.fraction == 1.0;
+                String pct = formatFraction(a.fraction);
                 widget.append("<label style='margin-right:10px;'>")
-                      .append("<input type='radio' name='").append(id).append("' value='").append(i).append("'> ")
-                      .append(alts.get(i).text)
+                      .append("<input type='radio' name='").append(id).append("' value='").append(i).append("'")
+                      .append(correct ? " checked" : "").append("> ")
+                      .append("<small style='color:#c00;margin-right:3px;'>(").append(pct).append(")</small>")
+                      .append(a.text)
                       .append("</label>");
             }
             widget.append("</span>");
@@ -903,9 +935,14 @@ public class MoodleEditorApp extends Application {
         else if (typeKey.matches("MULTIRESPONSE|MR|MULTIRESPONSE_S|MRS")) {
             widget.append("<span style='display:inline-block;vertical-align:top;'>");
             for (int i = 0; i < alts.size(); i++) {
+                ClozeAlt a = alts.get(i);
+                boolean correct = a.fraction > 0;
+                String pct = formatFraction(a.fraction);
                 widget.append("<label style='display:block;'>")
-                      .append("<input type='checkbox' name='").append(id).append("' value='").append(i).append("'> ")
-                      .append(alts.get(i).text)
+                      .append("<input type='checkbox' name='").append(id).append("' value='").append(i).append("'")
+                      .append(correct ? " checked" : "").append("> ")
+                      .append("<small style='color:#c00;margin-right:3px;'>(").append(pct).append(")</small>")
+                      .append(a.text)
                       .append("</label>");
             }
             widget.append("</span>");
@@ -915,15 +952,33 @@ public class MoodleEditorApp extends Application {
         else if (typeKey.matches("MULTIRESPONSE_H|MRH|MULTIRESPONSE_HS|MRHS")) {
             widget.append("<span style='display:inline-block;vertical-align:top;'>");
             for (int i = 0; i < alts.size(); i++) {
+                ClozeAlt a = alts.get(i);
+                boolean correct = a.fraction > 0;
+                String pct = formatFraction(a.fraction);
                 widget.append("<label style='margin-right:10px;'>")
-                      .append("<input type='checkbox' name='").append(id).append("' value='").append(i).append("'> ")
-                      .append(alts.get(i).text)
+                      .append("<input type='checkbox' name='").append(id).append("' value='").append(i).append("'")
+                      .append(correct ? " checked" : "").append("> ")
+                      .append("<small style='color:#c00;margin-right:3px;'>(").append(pct).append(")</small>")
+                      .append(a.text)
                       .append("</label>");
             }
             widget.append("</span>");
         }
 
         return badge + widget.toString();
+    }
+
+    /**
+     * Formatea una fracción cloze (0.0–1.0 o negativa) como porcentaje legible.
+     * Ejemplos: 1.0 → "100%", 0.5 → "50%", 0.0 → "0%", -0.5 → "-50%".
+     * Elimina decimales innecesarios (.0).
+     */
+    private static String formatFraction(double f) {
+        double pct = f * 100.0;
+        if (pct == Math.floor(pct)) {
+            return (int) pct + "%";
+        }
+        return String.format("%.1f%%", pct);
     }
 
     /**
