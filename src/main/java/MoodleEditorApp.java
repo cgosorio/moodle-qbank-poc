@@ -719,40 +719,42 @@ public class MoodleEditorApp extends Application {
      * mediante {@link #buildClozeColors()}, de modo que un cambio aquí se
      * refleja en toda la interfaz sin tocar más código.
      */
+    private static final String WHITE  = "#ffffff";
+    private static final String YELLOW = "#fffaaf";
     private static final Map<String, String[]> CLOZE_TYPE_COLORS = Map.ofEntries(
         // --- Numérica ---
-        Map.entry("NUMERICAL",              new String[]{"#b45309", "#ffffff"}),
-        Map.entry("NM",                     new String[]{"#b45309", "#ffffff"}),
+        Map.entry("NUMERICAL",              new String[]{"#b45309", WHITE}),
+        Map.entry("NM",                     new String[]{"#b45309", WHITE}),
         // --- Respuesta corta (insensible a mayúsculas) ---
-        Map.entry("SHORTANSWER",            new String[]{"#1d4ed8", "#ffffff"}),
-        Map.entry("SA",                     new String[]{"#1d4ed8", "#ffffff"}),
-        Map.entry("MW",                     new String[]{"#1d4ed8", "#ffffff"}),
+        Map.entry("SHORTANSWER",            new String[]{"#1d4ed8", WHITE}),
+        Map.entry("SA",                     new String[]{"#1d4ed8", WHITE}),
+        Map.entry("MW",                     new String[]{"#1d4ed8", WHITE}),
         // --- Respuesta corta (sensible a mayúsculas) ---
-        Map.entry("SHORTANSWER_C",          new String[]{"#0e7490", "#fffaaf"}),
-        Map.entry("SAC",                    new String[]{"#0e7490", "#fffaaf"}),
-        Map.entry("MWC",                    new String[]{"#0e7490", "#fffaaf"}),
+        Map.entry("SHORTANSWER_C",          new String[]{"#0e7490", WHITE}),
+        Map.entry("SAC",                    new String[]{"#0e7490", WHITE}),
+        Map.entry("MWC",                    new String[]{"#0e7490", WHITE}),
         // --- Opción múltiple (todas las variantes) ---
-        Map.entry("MULTICHOICE",            new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MC",                     new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MULTICHOICE_V",          new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MCV",                    new String[]{"#15803d", "#ffffff"}),
-        Map.entry("MULTICHOICE_H",          new String[]{"#15803d", "#fffaaf"}),
-        Map.entry("MCH",                    new String[]{"#15803d", "#fffaaf"}),
-        Map.entry("MULTICHOICE_S",          new String[]{"#15803d", "#ffaaff"}),
-        Map.entry("MCS",                    new String[]{"#15803d", "#ffaaff"}),
-        Map.entry("MULTICHOICE_VS",         new String[]{"#15803d", "#aaffff"}),
-        Map.entry("MCVS",                   new String[]{"#15803d", "#aaffff"}),
-        Map.entry("MULTICHOICE_HS",         new String[]{"#15803d", "#dddddd"}),
-        Map.entry("MCHS",                   new String[]{"#15803d", "#dddddd"}),
+        Map.entry("MULTICHOICE",            new String[]{"#15803d", WHITE}),
+        Map.entry("MC",                     new String[]{"#15803d", WHITE}),
+        Map.entry("MULTICHOICE_V",          new String[]{"#15803d", WHITE}),
+        Map.entry("MCV",                    new String[]{"#15803d", WHITE}),
+        Map.entry("MULTICHOICE_H",          new String[]{"#15803d", YELLOW}),
+        Map.entry("MCH",                    new String[]{"#15803d", YELLOW}),
+        Map.entry("MULTICHOICE_S",          new String[]{"#15803d", WHITE}),
+        Map.entry("MCS",                    new String[]{"#15803d", WHITE}),
+        Map.entry("MULTICHOICE_VS",         new String[]{"#15803d", WHITE}),
+        Map.entry("MCVS",                   new String[]{"#15803d", WHITE}),
+        Map.entry("MULTICHOICE_HS",         new String[]{"#15803d", YELLOW}),
+        Map.entry("MCHS",                   new String[]{"#15803d", YELLOW}),
         // --- Respuesta múltiple (todas las variantes) ---
-        Map.entry("MULTIRESPONSE",          new String[]{"#7e22ce", "#ffffff"}),
-        Map.entry("MR",                     new String[]{"#7e22ce", "#ffffff"}),
-        Map.entry("MULTIRESPONSE_H",        new String[]{"#7e22ce", "#fffaaf"}),
-        Map.entry("MRH",                    new String[]{"#7e22ce", "#fffaaf"}),
-        Map.entry("MULTIRESPONSE_S",        new String[]{"#7e22ce", "#ffaaff"}),
-        Map.entry("MRS",                    new String[]{"#7e22ce", "#ffaaff"}),
-        Map.entry("MULTIRESPONSE_HS",       new String[]{"#7e22ce", "#aaffff"}),
-        Map.entry("MRHS",                   new String[]{"#7e22ce", "#aaffff"})
+        Map.entry("MULTIRESPONSE",          new String[]{"#7e22ce", WHITE}),
+        Map.entry("MR",                     new String[]{"#7e22ce", WHITE}),
+        Map.entry("MULTIRESPONSE_H",        new String[]{"#7e22ce", YELLOW}),
+        Map.entry("MRH",                    new String[]{"#7e22ce", YELLOW}),
+        Map.entry("MULTIRESPONSE_S",        new String[]{"#7e22ce", WHITE}),
+        Map.entry("MRS",                    new String[]{"#7e22ce", WHITE}),
+        Map.entry("MULTIRESPONSE_HS",       new String[]{"#7e22ce", YELLOW}),
+        Map.entry("MRHS",                   new String[]{"#7e22ce", YELLOW})
     );
 
     /**
@@ -885,6 +887,17 @@ public class MoodleEditorApp extends Application {
     private int clozeWidgetCounter = 0;
 
     /**
+     * Función de ayuda para determinar si es una pregunta cloze barajeada (Shuffle)
+     */
+    private boolean isShuffledClozeVariant(String typeKey) {
+        String key = typeKey.toUpperCase();
+        return key.matches(
+            "MULTICHOICE_S|MCS|MULTICHOICE_VS|MCVS|MULTICHOICE_HS|MCHS|" +
+            "MULTIRESPONSE_S|MRS|MULTIRESPONSE_HS|MRHS"
+        );
+    }
+
+    /**
      * Genera la etiqueta de tipo (badge) con su color y el widget HTML
      * que simula el comportamiento de Moodle en un cuestionario.
      *
@@ -899,14 +912,21 @@ public class MoodleEditorApp extends Application {
         String[] colors = CLOZE_TYPE_COLORS.getOrDefault(typeKey, new String[]{"#888", "#fff"});
         String bg = colors[0];
         String fg = colors[1];
+        // Añade un borde rojo si no está configurado el barajeado de las opciones
+        String fontWeight = isShuffledClozeVariant(typeKey) ? "normal" : "bold";
+        String border = isShuffledClozeVariant(typeKey) ? "" : "border: 2px solid red;";
 
         // Badge con tipo y puntuación
         String badge =
             "<span title='" + points + " pt' style='" +
-            "background:" + bg + ";color:" + fg + ";" +
+            "background:" + bg + ";" +
+            "color:" + fg + ";" +
             "border-radius:3px;padding:0 4px;font-size:0.75em;" +
+            border + 
             "vertical-align:middle;margin-right:2px;font-family:monospace;" +
+            "font-weight:" + fontWeight + ";" +
             "'>" + escapeHtmlAttr(typeKey) + "</span>";
+
 
         StringBuilder widget = new StringBuilder();
 
@@ -1063,7 +1083,11 @@ public class MoodleEditorApp extends Application {
         StringBuilder sb = new StringBuilder();
         while (m.find()) {
             String typeKey = m.group(2).toUpperCase();
-            String[] colors = CLOZE_TYPE_COLORS.getOrDefault(typeKey, new String[]{"#9f1239", "#ffffff"});
+            String[] colors = CLOZE_TYPE_COLORS.getOrDefault(typeKey, new String[]{"#9f1239", "#fff"});
+            // Añade un borde rojo si no está configurado el barajeado de las opciones
+            String fontWeight = isShuffledClozeVariant(typeKey) ? "normal" : "bold";
+            String border = isShuffledClozeVariant(typeKey) ? "" : "border: 2px solid red;";
+
             String bgColor = colors[0];
             String fgColor = colors[1];
 
@@ -1080,9 +1104,11 @@ public class MoodleEditorApp extends Application {
                 "color:" + fgColor + ";" +
                 "border:1px solid rgba(0,0,0,0.25);" +
                 "border-radius:3px;" +
+                border +
                 "padding:1px 4px;" +
                 "font-family:monospace;" +
                 "font-size:0.85em;" +
+                "font-weight:" + fontWeight + ";" +
                 "'>" +
                 "<span style='opacity:0.75'>" + header + "</span>" +
                 inner +
