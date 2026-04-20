@@ -6,7 +6,7 @@ Prototipo de aplicación Java para la gestión de la jerarquía del banco de pre
 
 Este proyecto es una prueba de concepto desarrollada como punto de partida para el TFG *«Gestión offline del banco de preguntas de Moodle»*. La aplicación permite trabajar de forma _offline_ con las preguntas exportadas del banco de preguntas de Moodle, facilitando operaciones sobre la jerarquía de categorías como mover preguntas, reorganizar categorías o eliminarlas, para su posterior reimportación a Moodle.
 
-El prototipo ha sido **desarrollado con asistencia de Gemini** como experimento de generación rápida de un prototipo mediante IA.
+El prototipo ha sido **desarrollado con asistencia de [Claude](https://claude.ai/)** como experimento de generación rápida de un prototipo mediante IA.
 
 ## Estado del proyecto
 
